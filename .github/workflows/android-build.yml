@@ -39,7 +39,7 @@ jobs:
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/v}
           else
-            VERSION=$(grep -oP "versionName '\K[^']*" app/build.gradle)
+            VERSION=$(grep "versionName" app/build.gradle | sed "s/.*'\(.*\)'.*/\1/")
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
