@@ -36,7 +36,7 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private VideoAdapter videoAdapter;
     private SwipeRefreshLayout swipeRefreshLayout;
-    private FrameLayout folderSelector;
+    private View folderSelector;
     private TextView emptyText;
     
     private Player player;
