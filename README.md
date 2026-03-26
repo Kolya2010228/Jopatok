@@ -2,7 +2,7 @@
 
 Android-приложение для просмотра видео из локальных папок в стиле TikTok.
 
-![Android Build](https://github.com/YOUR_USERNAME/Jopatok/workflows/Android%20Build/badge.svg)
+![Android Build](https://github.com/Kolya2010228/Jopatok/workflows/Android%20Build%20&%20Release/badge.svg)
 
 ## 📱 Особенности
 
@@ -64,7 +64,7 @@ MIT License - см. файл [LICENSE](LICENSE)
 
 Ваше Имя - [@yourusername](https://github.com/yourusername)
 
-Ссылка на проект: [https://github.com/YOUR_USERNAME/Jopatok](https://github.com/YOUR_USERNAME/Jopatok)
+Ссылка на проект: [https://github.com/Kolya2010228/Jopatok](https://github.com/Kolya2010228/Jopatok)
 
 ---
 
