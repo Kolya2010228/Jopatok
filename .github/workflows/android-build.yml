@@ -1,68 +1,216 @@
-name: Android Build
+name: Android Build & Release
 
 on:
   push:
     branches: [ main, master ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Тип версии (patch/minor/major)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+env:
+  VERSION_FILE: app/build.gradle
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+      with:
+        fetch-depth: 0
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        
+
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v3
-      
+
     - name: Make Gradle executable
       run: chmod +x gradlew
-      
-    - name: Build with Gradle
-      run: ./gradlew build
-      
+
+    - name: Cache Gradle
+      uses: actions/cache@v4
+      with:
+        paths: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
     - name: Build Debug APK
-      run: ./gradlew assembleDebug
-      
+      run: ./gradlew assembleDebug --stacktrace
+
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
         retention-days: 30
+
+    - name: Upload all APKs
+      uses: actions/upload-artifact@v4
+      with:
+        name: all-apks
+        path: app/build/outputs/apk/
+        retention-days: 30
+
+  auto-version:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Get current version
+      id: current_version
+      run: |
+        VERSION=$(grep -oP "versionName '\K[^']*" app/build.gradle)
+        echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $VERSION"
+
+    - name: Calculate new version
+      id: version
+      run: |
+        CURRENT="${{ steps.current_version.outputs.current_version }}"
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
         
+        case "${{ github.event.inputs.version_type }}" in
+          major)
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            ;;
+          minor)
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            ;;
+          patch)
+            PATCH=$((PATCH + 1))
+            ;;
+        esac
+        
+        NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version: $NEW_VERSION"
+
+    - name: Update version in build.gradle
+      run: |
+        sed -i "s/versionCode [0-9]*/versionCode $(( $(grep -oP "versionCode \K[0-9]*" app/build.gradle) + 1 ))/" app/build.gradle
+        sed -i "s/versionName '.*'/versionName '${{ steps.version.outputs.new_version }}'/" app/build.gradle
+
+    - name: Commit and push new version
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add app/build.gradle
+        git commit -m "Bump version to ${{ steps.version.outputs.new_version }} [skip ci]" || echo "No changes to commit"
+        git push
+
+    - name: Create Git Tag
+      run: |
+        git tag "v${{ steps.version.outputs.new_version }}"
+        git push origin "v${{ steps.version.outputs.new_version }}"
+
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        
+
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v3
-      
+
     - name: Build Release APK
-      run: ./gradlew assembleRelease
-      
+      run: ./gradlew assembleRelease --stacktrace
+
+    - name: Build Release Bundle (AAB)
+      run: ./gradlew bundleRelease --stacktrace
+
+    - name: Get version from tag
+      id: get_version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Generate Changelog
+      id: changelog
+      run: |
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -z "$PREVIOUS_TAG" ]; then
+          CHANGELOG=$(git log --pretty=format:"* %s (%h)" HEAD)
+        else
+          CHANGELOG=$(git log --pretty=format:"* %s (%h)" $PREVIOUS_TAG..HEAD)
+        fi
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
-        files: app/build/outputs/apk/release/app-release.apk
+        tag_name: ${{ github.ref_name }}
+        name: "Jopatok v${{ steps.get_version.outputs.version }}"
+        body: |
+          ## 🚀 Что нового
+
+          ${{ steps.changelog.outputs.changelog }}
+
+          ## 📦 Установка
+
+          1. Скачайте `app-release.apk`
+          2. Установите на Android устройство
+          3. Наслаждайтесь!
+
+          ## 🔧 Технические детали
+
+          - **Version Code**: Auto-incremented
+          - **Min SDK**: 21 (Android 5.0)
+          - **Target SDK**: 34 (Android 14)
+
+          ---
+          **Собрано автоматически** via GitHub Actions 🤖
+        files: |
+          app/build/outputs/apk/release/app-release.apk
+          app/build/outputs/bundle/release/app-release.aab
+        draft: false
+        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Debug APK to Release
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: app/build/outputs/apk/release/app-release.apk
+        retention-days: 90
