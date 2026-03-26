@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Jopatok</string>
+    <string name="welcome_title">Добро пожаловать в Jopatok!</string>
+    <string name="welcome_subtitle">Выберите папки с видео и наслаждайтесь просмотром</string>
+    <string name="select_folder">Выбрать папку</string>
+    <string name="multiple_folders_hint">Можно выбрать несколько папок</string>
+    <string name="no_videos">В выбранных папках нет видео 😔</string>
+</resources>
