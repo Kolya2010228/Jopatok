@@ -19,9 +19,6 @@ on:
           - minor
           - major
 
-env:
-  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -47,24 +44,8 @@ jobs:
         sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
         sdkmanager --licenses || true
 
-    - name: Setup Gradle
-      uses: gradle/gradle-build-action@v3
-
-    - name: Make Gradle executable
-      run: chmod +x gradlew
-
-    - name: Cache Gradle
-      uses: actions/cache@v4
-      with:
-        paths: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
-
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace --no-daemon
+      run: ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
@@ -161,14 +142,11 @@ jobs:
         sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
         sdkmanager --licenses || true
 
-    - name: Setup Gradle
-      uses: gradle/gradle-build-action@v3
-
     - name: Build Release APK
-      run: ./gradlew assembleRelease --stacktrace --no-daemon
+      run: ./gradlew assembleRelease --no-daemon
 
     - name: Build Release Bundle (AAB)
-      run: ./gradlew bundleRelease --stacktrace --no-daemon
+      run: ./gradlew bundleRelease --no-daemon
 
     - name: Get version from tag
       id: get_version
@@ -218,10 +196,3 @@ jobs:
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload Debug APK to Release
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release
-        path: app/build/outputs/apk/release/app-release.apk
-        retention-days: 90
