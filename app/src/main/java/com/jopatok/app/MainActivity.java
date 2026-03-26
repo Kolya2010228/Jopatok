@@ -46,16 +46,24 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        try {
+            setContentView(R.layout.activity_main);
 
-        videoManager = new VideoManager(this);
-        
-        // Инициализация ExoPlayer
-        player = new ExoPlayer.Builder(this)
-            .build();
+            videoManager = new VideoManager(this);
+            
+            // Инициализация ExoPlayer
+            player = new ExoPlayer.Builder(this)
+                .setHandleAudioBecomingNoisy(true)
+                .build();
 
-        initViews();
-        checkPermissions();
+            initViews();
+            checkPermissions();
+        } catch (Exception e) {
+            Log.e(TAG, "Error in onCreate: " + e.getMessage());
+            e.printStackTrace();
+            Toast.makeText(this, "Ошибка запуска: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            finish();
+        }
     }
 
     private void initViews() {
