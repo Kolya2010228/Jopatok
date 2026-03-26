@@ -5,7 +5,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -70,6 +69,10 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             player.release();
         }
     }
+    
+    public int getCurrentPlayingPosition() {
+        return currentPlayingPosition;
+    }
 
     class VideoViewHolder extends RecyclerView.ViewHolder {
         private PlayerView playerView;
@@ -111,8 +114,6 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
                             player.prepare();
                             player.play();
                         }
-                    } else {
-                        player.stop();
                     }
                 }
             } catch (Exception e) {

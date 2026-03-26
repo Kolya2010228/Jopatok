@@ -1,6 +1,8 @@
 package com.jopatok.app;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -10,7 +12,6 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -22,7 +23,9 @@ import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Главное приложение Jopatok
@@ -30,6 +33,8 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
+    private static final String PREFS_NAME = "JopatokPrefs";
+    private static final String PREF_SELECTED_FOLDERS = "selected_folders";
     private static final int REQUEST_CODE_PICK_FOLDER = 1001;
     private static final int REQUEST_CODE_PERMISSIONS = 1002;
 
@@ -42,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
     private Player player;
     private VideoManager videoManager;
     private List<Uri> selectedFolders = new ArrayList<>();
+    private SharedPreferences prefs;
+    private PagerSnapHelper snapHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             setContentView(R.layout.activity_main);
 
+            prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             videoManager = new VideoManager(this);
             
             // Инициализация ExoPlayer
@@ -57,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
                 .build();
 
             initViews();
+            loadSavedFolders();
             checkPermissions();
         } catch (Exception e) {
             Log.e(TAG, "Error in onCreate: " + e.getMessage());
@@ -74,12 +83,28 @@ public class MainActivity extends AppCompatActivity {
 
         // Настройка RecyclerView для вертикальных свайпов
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        PagerSnapHelper snapHelper = new PagerSnapHelper();
+        snapHelper = new PagerSnapHelper();
         snapHelper.attachToRecyclerView(recyclerView);
 
         // Создаем адаптер с общим плеером
         videoAdapter = new VideoAdapter(this, player);
         recyclerView.setAdapter(videoAdapter);
+
+        // Отслеживание скролла для авто-переключения видео
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    View snapView = snapHelper.findSnapView(recyclerView.getLayoutManager());
+                    if (snapView != null) {
+                        int position = recyclerView.getChildAdapterPosition(snapView);
+                        if (position >= 0 && position != videoAdapter.getCurrentPlayingPosition()) {
+                            videoAdapter.playVideoAt(position);
+                        }
+                    }
+                }
+            }
+        });
 
         // Кнопка выбора папки
         Button selectFolderBtn = findViewById(R.id.selectFolderBtn);
@@ -91,6 +116,33 @@ public class MainActivity extends AppCompatActivity {
             R.color.purple_500,
             R.color.purple_700
         );
+    }
+    
+    private void loadSavedFolders() {
+        Set<String> savedUris = prefs.getStringSet(PREF_SELECTED_FOLDERS, new HashSet<>());
+        for (String uriString : savedUris) {
+            try {
+                Uri uri = Uri.parse(uriString);
+                if (uri != null) {
+                    selectedFolders.add(uri);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading saved URI: " + e.getMessage());
+            }
+        }
+        if (!selectedFolders.isEmpty()) {
+            loadVideos();
+        }
+    }
+    
+    private void saveFolders() {
+        Set<String> uriStrings = new HashSet<>();
+        for (Uri uri : selectedFolders) {
+            if (uri != null) {
+                uriStrings.add(uri.toString());
+            }
+        }
+        prefs.edit().putStringSet(PREF_SELECTED_FOLDERS, uriStrings).apply();
     }
 
     private void checkPermissions() {
@@ -184,6 +236,7 @@ public class MainActivity extends AppCompatActivity {
                     getContentResolver().takePersistableUriPermission(
                         uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                     selectedFolders.add(uri);
+                    saveFolders();
                     loadVideos();
                 } catch (Exception e) {
                     Log.e(TAG, "Error taking URI permission: " + e.getMessage());
@@ -206,12 +259,13 @@ public class MainActivity extends AppCompatActivity {
                     if (videos == null || videos.isEmpty()) {
                         emptyText.setVisibility(View.VISIBLE);
                         recyclerView.setVisibility(View.GONE);
+                        folderSelector.setVisibility(View.VISIBLE);
                         Toast.makeText(this, "Видео не найдено", Toast.LENGTH_SHORT).show();
                     } else {
                         emptyText.setVisibility(View.GONE);
                         recyclerView.setVisibility(View.VISIBLE);
-                        videoAdapter.setVideos(videos);
                         folderSelector.setVisibility(View.GONE);
+                        videoAdapter.setVideos(videos);
                         
                         // Запускаем первое видео
                         if (!videos.isEmpty()) {
