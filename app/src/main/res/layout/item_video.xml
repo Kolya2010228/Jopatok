@@ -12,7 +12,7 @@
         android:layout_height="match_parent"
         android:layout_gravity="center"
         android:visibility="visible"
-        app:resize_mode="fill"
+        app:resize_mode="fit"
         app:show_buffering="when_playing"
         app:use_controller="false" />
 
