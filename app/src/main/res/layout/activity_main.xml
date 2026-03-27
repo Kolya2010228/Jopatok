@@ -18,6 +18,18 @@
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
+    <!-- Кнопка настроек -->
+    <ImageButton
+        android:id="@+id/settingsBtn"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_settings"
+        android:contentDescription="Настройки"
+        app:tint="@android:color/white" />
+
     <!-- Экран выбора папки -->
     <LinearLayout
         android:id="@+id/folderSelector"

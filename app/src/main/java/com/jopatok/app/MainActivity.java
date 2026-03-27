@@ -12,9 +12,11 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
@@ -23,6 +25,7 @@ import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private static final String PREFS_NAME = "JopatokPrefs";
     private static final String PREF_SELECTED_FOLDERS = "selected_folders";
+    private static final String PREF_SHUFFLE_VIDEOS = "shuffle_videos";
     private static final int REQUEST_CODE_PICK_FOLDER = 1001;
     private static final int REQUEST_CODE_PERMISSIONS = 1002;
 
@@ -43,12 +47,14 @@ public class MainActivity extends AppCompatActivity {
     private SwipeRefreshLayout swipeRefreshLayout;
     private View folderSelector;
     private TextView emptyText;
+    private ImageButton settingsBtn;
     
     private Player player;
     private VideoManager videoManager;
     private List<Uri> selectedFolders = new ArrayList<>();
     private SharedPreferences prefs;
     private PagerSnapHelper snapHelper;
+    private boolean shuffleVideos = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,6 +86,7 @@ public class MainActivity extends AppCompatActivity {
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         folderSelector = findViewById(R.id.folderSelector);
         emptyText = findViewById(R.id.emptyText);
+        settingsBtn = findViewById(R.id.settingsBtn);
 
         // Настройка RecyclerView для вертикальных свайпов
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -106,6 +113,9 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // Кнопка настроек
+        settingsBtn.setOnClickListener(v -> showSettingsDialog());
+
         // Кнопка выбора папки
         Button selectFolderBtn = findViewById(R.id.selectFolderBtn);
         selectFolderBtn.setOnClickListener(v -> pickFolder());
@@ -130,6 +140,10 @@ public class MainActivity extends AppCompatActivity {
                 Log.e(TAG, "Error loading saved URI: " + e.getMessage());
             }
         }
+        
+        // Загружаем настройку shuffle
+        shuffleVideos = prefs.getBoolean(PREF_SHUFFLE_VIDEOS, false);
+        
         if (!selectedFolders.isEmpty()) {
             loadVideos();
         }
@@ -143,6 +157,58 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         prefs.edit().putStringSet(PREF_SELECTED_FOLDERS, uriStrings).apply();
+    }
+    
+    private void showSettingsDialog() {
+        String[] options = {"Добавить папку", "Удалить папку", "Перемешать видео: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ")};
+        
+        new AlertDialog.Builder(this)
+            .setTitle("Настройки")
+            .setItems(options, (dialog, which) -> {
+                switch (which) {
+                    case 0:
+                        pickFolder();
+                        break;
+                    case 1:
+                        showRemoveFolderDialog();
+                        break;
+                    case 2:
+                        toggleShuffle();
+                        break;
+                }
+            })
+            .setNegativeButton("Закрыть", null)
+            .show();
+    }
+    
+    private void showRemoveFolderDialog() {
+        if (selectedFolders.isEmpty()) {
+            Toast.makeText(this, "Нет выбранных папок", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        String[] folderNames = new String[selectedFolders.size()];
+        for (int i = 0; i < selectedFolders.size(); i++) {
+            folderNames[i] = "Папка #" + (i + 1);
+        }
+        
+        new AlertDialog.Builder(this)
+            .setTitle("Удалить папку")
+            .setItems(folderNames, (dialog, which) -> {
+                selectedFolders.remove(which);
+                saveFolders();
+                loadVideos();
+                Toast.makeText(this, "Папка удалена", Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Отмена", null)
+            .show();
+    }
+    
+    private void toggleShuffle() {
+        shuffleVideos = !shuffleVideos;
+        prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
+        Toast.makeText(this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+        loadVideos();
     }
 
     private void checkPermissions() {
@@ -253,6 +319,12 @@ public class MainActivity extends AppCompatActivity {
             try {
                 List<VideoItem> videos = videoManager.scanFolders(selectedFolders);
                 
+                // Перемешиваем видео если включена опция
+                if (shuffleVideos && videos != null && !videos.isEmpty()) {
+                    Collections.shuffle(videos);
+                    Log.d(TAG, "Videos shuffled: " + videos.size() + " items");
+                }
+                
                 runOnUiThread(() -> {
                     swipeRefreshLayout.setRefreshing(false);
 
@@ -272,7 +344,8 @@ public class MainActivity extends AppCompatActivity {
                             videoAdapter.playVideoAt(0);
                         }
                         
-                        Toast.makeText(this, "Найдено видео: " + videos.size(), Toast.LENGTH_SHORT).show();
+                        String mode = shuffleVideos ? " (перемешаны)" : "";
+                        Toast.makeText(this, "Найдено видео: " + videos.size() + mode, Toast.LENGTH_SHORT).show();
                     }
                 });
             } catch (Exception e) {
