@@ -5,6 +5,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -32,6 +33,7 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
 
     public void setVideos(List<VideoItem> videos) {
         this.videos = videos;
+        currentPlayingPosition = -1;
         notifyDataSetChanged();
     }
 
@@ -45,6 +47,12 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
     @Override
     public void onBindViewHolder(@NonNull VideoViewHolder holder, int position) {
         holder.bind(position);
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull VideoViewHolder holder) {
+        super.onViewRecycled(holder);
+        holder.unbind();
     }
 
     @Override
@@ -66,6 +74,8 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
         }
         // Уведомляем новый элемент
         notifyItemChanged(position);
+        
+        Log.d(TAG, "Switched to video at position " + position);
     }
 
     public void releasePlayer() {
@@ -80,12 +90,14 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
 
     class VideoViewHolder extends RecyclerView.ViewHolder {
         private PlayerView playerView;
+        private FrameLayout videoContainer;
         private TextView videoTitle;
         private TextView videoFolder;
 
         public VideoViewHolder(@NonNull View itemView) {
             super(itemView);
             playerView = itemView.findViewById(R.id.playerView);
+            videoContainer = itemView.findViewById(R.id.videoContainer);
             videoTitle = itemView.findViewById(R.id.videoTitle);
             videoFolder = itemView.findViewById(R.id.videoFolder);
         }
@@ -105,39 +117,39 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
                 videoFolder.setText(video.getFolderName());
             }
 
-            try {
-                if (playerView != null && player != null) {
-                    playerView.setPlayer(player);
-
-                    // Устанавливаем и запускаем видео только если это текущая позиция
-                    if (position == currentPlayingPosition) {
-                        if (video.getUri() != null) {
-                            Log.d(TAG, "Playing video at position " + position + ": " + video.getTitle());
-                            
-                            // Проверяем, нужно ли загружать новое видео
-                            MediaItem currentMediaItem = player.getCurrentMediaItem();
-                            if (currentMediaItem == null || 
-                                !currentMediaItem.localConfiguration.uri.equals(video.getUri())) {
-                                // Загружаем новое видео
-                                MediaItem mediaItem = MediaItem.fromUri(video.getUri());
-                                player.setMediaItem(mediaItem);
-                                player.prepare();
-                            }
-                            
-                            // Запускаем воспроизведение
-                            if (player.getPlaybackState() == Player.STATE_IDLE || 
-                                player.getPlaybackState() == Player.STATE_ENDED) {
-                                player.prepare();
-                            }
-                            player.play();
-                        }
-                    } else {
-                        // Для неактивных видео - просто открепляем PlayerView, но не останавливаем плеер
-                        playerView.setPlayer(null);
+            // Показываем/скрываем PlayerView в зависимости от позиции
+            if (position == currentPlayingPosition) {
+                playerView.setVisibility(View.VISIBLE);
+                playerView.setPlayer(player);
+                
+                // Загружаем и запускаем видео
+                if (video.getUri() != null) {
+                    MediaItem currentMediaItem = player.getCurrentMediaItem();
+                    
+                    // Проверяем, нужно ли загружать новое видео
+                    boolean needNewMedia = currentMediaItem == null || 
+                        currentMediaItem.localConfiguration == null ||
+                        !currentMediaItem.localConfiguration.uri.equals(video.getUri());
+                    
+                    if (needNewMedia) {
+                        Log.d(TAG, "Loading new video at position " + position);
+                        MediaItem mediaItem = MediaItem.fromUri(video.getUri());
+                        player.setMediaItem(mediaItem);
+                        player.prepare();
                     }
+                    
+                    player.play();
                 }
-            } catch (Exception e) {
-                Log.e(TAG, "Error binding video at position " + position + ": " + e.getMessage(), e);
+            } else {
+                // Для неактивных видео - скрываем PlayerView и останавливаем плеер
+                playerView.setVisibility(View.GONE);
+                playerView.setPlayer(null);
+            }
+        }
+        
+        public void unbind() {
+            if (playerView != null) {
+                playerView.setPlayer(null);
             }
         }
     }

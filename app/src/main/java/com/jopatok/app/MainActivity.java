@@ -99,14 +99,20 @@ public class MainActivity extends AppCompatActivity {
 
         // Отслеживание скролла для авто-переключения видео
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            private int lastIdlePosition = 0;
+            
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+                
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     View snapView = snapHelper.findSnapView(recyclerView.getLayoutManager());
                     if (snapView != null) {
                         int position = recyclerView.getChildAdapterPosition(snapView);
-                        if (position >= 0 && position != videoAdapter.getCurrentPlayingPosition()) {
+                        if (position >= 0 && position != lastIdlePosition && position != videoAdapter.getCurrentPlayingPosition()) {
+                            Log.d(TAG, "Scroll idle at position: " + position);
                             videoAdapter.playVideoAt(position);
+                            lastIdlePosition = position;
                         }
                     }
                 }
