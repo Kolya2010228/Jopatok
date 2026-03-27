@@ -18,6 +18,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -228,7 +229,8 @@ public class MainActivity extends AppCompatActivity {
             }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // Android 13+
-            if (checkSelfPermission(android.Manifest.permission.READ_MEDIA_VIDEO)
+            if (ContextCompat.checkSelfPermission(this,
+                    android.Manifest.permission.READ_MEDIA_VIDEO)
                     != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{
                     android.Manifest.permission.READ_MEDIA_VIDEO
@@ -238,7 +240,8 @@ public class MainActivity extends AppCompatActivity {
             }
         } else {
             // Android 6-12
-            if (checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+            if (ContextCompat.checkSelfPermission(this,
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE)
                     != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(new String[]{
                     android.Manifest.permission.READ_EXTERNAL_STORAGE
@@ -346,13 +349,9 @@ public class MainActivity extends AppCompatActivity {
                         recyclerView.setVisibility(View.VISIBLE);
                         folderSelector.setVisibility(View.GONE);
                         // Принудительно создаем новый список для RecyclerView
+                        // setVideos автоматически запустит первое видео (currentPlayingPosition = 0)
                         videoAdapter.setVideos(new ArrayList<>(videos));
-                        
-                        // Запускаем первое видео
-                        if (!videos.isEmpty()) {
-                            videoAdapter.playVideoAt(0);
-                        }
-                        
+
                         String mode = shuffleVideos ? " (перемешаны)" : "";
                         Toast.makeText(this, "Найдено видео: " + videos.size() + mode, Toast.LENGTH_SHORT).show();
                     }
@@ -378,7 +377,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (player != null && recyclerView.getChildCount() > 0) {
+        // Возобновляем воспроизведение только если есть активная позиция
+        if (player != null && videoAdapter.getCurrentPlayingPosition() >= 0) {
             player.play();
         }
     }

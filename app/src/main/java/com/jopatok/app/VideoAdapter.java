@@ -34,7 +34,8 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
     public void setVideos(List<VideoItem> videos) {
         Log.d(TAG, "Setting videos: " + (videos != null ? videos.size() : 0));
         this.videos = videos != null ? videos : new ArrayList<>();
-        currentPlayingPosition = -1;
+        // Сбрасываем позицию и сразу запускаем первое видео
+        currentPlayingPosition = videos != null && !videos.isEmpty() ? 0 : -1;
         // Полная перерисовка для применения shuffle
         notifyDataSetChanged();
     }
@@ -53,8 +54,8 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
 
     @Override
     public void onViewRecycled(@NonNull VideoViewHolder holder) {
-        holder.unbind();
         super.onViewRecycled(holder);
+        holder.unbind();
     }
 
     @Override
@@ -67,14 +68,18 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             Log.w(TAG, "Invalid position: " + position);
             return;
         }
-        
+
         Log.d(TAG, "Playing video at position: " + position);
-        currentPlayingPosition = position;
         
-        // Находим видимые ViewHolder и обновляем их
-        for (int i = 0; i < getItemCount(); i++) {
-            notifyItemChanged(i);
+        // Сохраняем старую позицию
+        int previousPosition = currentPlayingPosition;
+        currentPlayingPosition = position;
+
+        // Обновляем только две позиции: старую и новую
+        if (previousPosition >= 0 && previousPosition < getItemCount()) {
+            notifyItemChanged(previousPosition);
         }
+        notifyItemChanged(position);
     }
 
     public void releasePlayer() {
@@ -102,15 +107,16 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
         }
 
         public void bind(int position) {
-            int adapterPosition = getAdapterPosition();
-            if (videos == null || adapterPosition < 0 || adapterPosition >= videos.size()) {
+            if (videos == null || position < 0 || position >= videos.size()) {
                 return;
             }
 
-            VideoItem video = videos.get(adapterPosition);
-            boolean isActive = (adapterPosition == currentPlayingPosition);
+            VideoItem video = videos.get(position);
+            // Сохраняем текущую позицию локально для проверки
+            final int playingPos = currentPlayingPosition;
+            boolean isActive = (position == playingPos);
 
-            Log.d(TAG, "Binding position " + adapterPosition + ", active=" + isActive + ", uri=" + (video.getUri() != null));
+            Log.d(TAG, "Binding position " + position + ", active=" + isActive + ", uri=" + (video.getUri() != null));
 
             // Устанавливаем информацию о видео
             if (videoTitle != null && video.getTitle() != null) {
@@ -123,17 +129,21 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             if (isActive) {
                 // Активное видео - показываем и запускаем
                 playerView.setVisibility(View.VISIBLE);
-                
+
                 if (player != null && video.getUri() != null) {
                     playerView.setPlayer(player);
-                    
-                    // Всегда загружаем новое видео для активной позиции
-                    MediaItem mediaItem = MediaItem.fromUri(video.getUri());
-                    player.setMediaItem(mediaItem);
-                    player.prepare();
-                    player.play();
-                    
-                    Log.d(TAG, "Started playing video at position " + adapterPosition);
+
+                    // Проверяем, не изменилась ли позиция пока готовили
+                    if (currentPlayingPosition == playingPos) {
+                        // Загружаем и запускаем новое видео
+                        // Не вызываем stop() - setMediaItem автоматически заменит предыдущее
+                        MediaItem mediaItem = MediaItem.fromUri(video.getUri());
+                        player.setMediaItem(mediaItem);
+                        player.prepare();
+                        player.play();
+
+                        Log.d(TAG, "Started playing video at position " + position);
+                    }
                 }
             } else {
                 // Неактивное видео - скрываем

@@ -20,7 +20,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-      
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Get Latest Release Tag
         id: latest_release
         run: |
