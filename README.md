@@ -56,16 +56,4 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 4. Push в ветку (`git push origin feature/AmazingFeature`)
 5. Откройте Pull Request
 
-## 📄 Лицензия
 
-MIT License - см. файл [LICENSE](LICENSE)
-
-## 📞 Контакты
-
-Ваше Имя - [@yourusername](https://github.com/yourusername)
-
-Ссылка на проект: [https://github.com/Kolya2010228/Jopatok](https://github.com/Kolya2010228/Jopatok)
-
----
-
-**Jopatok** © 2026 - Сделано с ❤️ для Android
