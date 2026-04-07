@@ -18,10 +18,14 @@ android {
 
     signingConfigs {
         release {
-            storeFile file('../jopatok-release.jks')
-            storePassword 'JopatokRelease2026'
-            keyAlias 'jopatok'
-            keyPassword 'JopatokRelease2026'
+            def keystorePath = project.hasProperty('KEYSTORE_PATH') ? KEYSTORE_PATH : '../jopatok-release.jks'
+            def keystoreFile = file(keystorePath)
+            if (keystoreFile.exists()) {
+                storeFile keystoreFile
+                storePassword project.hasProperty('KEYSTORE_PASSWORD') ? KEYSTORE_PASSWORD : 'JopatokRelease2026'
+                keyAlias project.hasProperty('KEY_ALIAS') ? KEY_ALIAS : 'jopatok'
+                keyPassword project.hasProperty('KEY_PASSWORD') ? KEY_PASSWORD : 'JopatokRelease2026'
+            }
         }
     }
 
@@ -29,7 +33,11 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            if (android.signingConfigs.release.storeFile != null) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
         }
     }
     
