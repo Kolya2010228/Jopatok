@@ -24,6 +24,10 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
+      - name: Setup Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > jopatok-release.jks
+
       - name: Get Latest Release Tag
         id: latest_release
         run: |
@@ -55,7 +59,7 @@ jobs:
       - name: Build Release APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon -PKEYSTORE_PATH=jopatok-release.jks -PKEYSTORE_PASSWORD=JopatokRelease2026 -PKEY_ALIAS=jopatok -PKEY_PASSWORD=JopatokRelease2026
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
