@@ -9,40 +9,25 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Менеджер для работы с видеофайлами
- */
 public class VideoManager {
 
     private static final String TAG = "VideoManager";
-
     private Context context;
 
     public VideoManager(Context context) {
         this.context = context;
     }
 
-    /**
-     * Сканировать папку и вернуть список видео (включая подпапки рекурсивно)
-     */
     public List<VideoItem> scanFolder(Uri folderUri, String folderName) {
-        List<VideoItem> videos = new ArrayList<>();
-
-        if (folderUri == null) {
-            return videos;
-        }
+        List<VideoItem> videos = new ArrayList<VideoItem>();
+        if (folderUri == null) return videos;
 
         ContentResolver resolver = context.getContentResolver();
-
         try {
             String docId = getDocumentId(folderUri);
-            if (docId == null || docId.isEmpty()) {
-                return videos;
-            }
+            if (docId == null || docId.isEmpty()) return videos;
 
-            Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
-                folderUri, docId);
-
+            Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, docId);
             String[] projection = {
                 DocumentsContract.Document.COLUMN_DOCUMENT_ID,
                 DocumentsContract.Document.COLUMN_DISPLAY_NAME,
@@ -57,17 +42,11 @@ public class VideoManager {
                         String displayName = cursor.getString(1);
                         String mimeType = cursor.getString(2);
 
-                        // Рекурсивно сканируем подпапки
                         if (DocumentsContract.Document.MIME_TYPE_DIR.equals(mimeType)) {
-                            Uri subFolderUri = DocumentsContract.buildDocumentUriUsingTree(
-                                folderUri, documentId);
-                            String subFolderName = displayName;
-                            videos.addAll(scanFolder(subFolderUri, subFolderName));
-                        }
-                        // Добавляем видеофайлы
-                        else if (mimeType != null && mimeType.startsWith("video/")) {
-                            Uri videoUri = DocumentsContract.buildDocumentUriUsingTree(
-                                folderUri, documentId);
+                            Uri subFolderUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, documentId);
+                            videos.addAll(scanFolder(subFolderUri, displayName));
+                        } else if (mimeType != null && mimeType.startsWith("video/")) {
+                            Uri videoUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, documentId);
                             videos.add(new VideoItem(displayName, videoUri, displayName, folderName));
                         }
                     }
@@ -78,29 +57,19 @@ public class VideoManager {
         } catch (Exception e) {
             Log.e(TAG, "Error scanning folder: " + e.getMessage());
         }
-
         return videos;
     }
 
-    /**
-     * Сканировать несколько папок (рекурсивно)
-     */
     public List<VideoItem> scanFolders(List<Uri> folderUris) {
-        List<VideoItem> allVideos = new ArrayList<>();
-
-        if (folderUris == null || folderUris.isEmpty()) {
-            return allVideos;
-        }
+        List<VideoItem> allVideos = new ArrayList<VideoItem>();
+        if (folderUris == null || folderUris.isEmpty()) return allVideos;
 
         for (Uri folderUri : folderUris) {
             if (folderUri != null) {
                 String folderName = getFolderNameFromUri(folderUri);
-                List<VideoItem> folderVideos = scanFolder(folderUri, folderName);
-                allVideos.addAll(folderVideos);
+                allVideos.addAll(scanFolder(folderUri, folderName));
             }
         }
-
-        Log.d(TAG, "Total videos found: " + allVideos.size());
         return allVideos;
     }
 
@@ -109,7 +78,6 @@ public class VideoManager {
             String docId = uri.getLastPathSegment();
             return docId != null ? docId : "";
         } catch (Exception e) {
-            Log.e(TAG, "Error getting document ID: " + e.getMessage());
             return "";
         }
     }
@@ -119,9 +87,7 @@ public class VideoManager {
             String path = uri.getPath();
             if (path != null && path.contains("/tree/")) {
                 String[] parts = path.split("/");
-                if (parts.length > 0) {
-                    return parts[parts.length - 1];
-                }
+                if (parts.length > 0) return parts[parts.length - 1];
             }
         } catch (Exception e) {
             Log.e(TAG, "Error getting folder name: " + e.getMessage());
