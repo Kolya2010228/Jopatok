@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.MenuItem;
@@ -74,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
 
     private SwitchMaterial shuffleSwitch;
     private SwitchMaterial loopSwitch;
+    private PowerManager.WakeLock wakeLock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
                 .build();
 
             initViews();
+            initWakeLock();
             loadSavedSettings();
             checkPermissions();
         } catch (Exception e) {
@@ -181,6 +184,28 @@ public class MainActivity extends AppCompatActivity {
 
         swipeRefreshLayout.setOnRefreshListener(this::loadVideos);
         swipeRefreshLayout.setColorSchemeResources(R.color.purple_500, R.color.purple_700);
+    }
+
+    private void initWakeLock() {
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = pm.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE,
+            "Jopatok::WakeLock"
+        );
+    }
+
+    private void acquireWakeLock() {
+        if (wakeLock != null && !wakeLock.isHeld()) {
+            wakeLock.acquire(10 * 60 * 1000L /*10 минут*/);
+            Log.d(TAG, "WakeLock acquired");
+        }
+    }
+
+    private void releaseWakeLock() {
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+            Log.d(TAG, "WakeLock released");
+        }
     }
 
     private boolean onNavigationItemSelected(@NonNull MenuItem item) {
@@ -479,6 +504,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        releaseWakeLock();
         if (player != null) {
             player.pause();
         }
@@ -487,6 +513,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        acquireWakeLock();
         if (player != null && videoAdapter.getCurrentPlayingPosition() >= 0) {
             player.play();
         }
@@ -495,6 +522,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        releaseWakeLock();
         if (videoAdapter != null) {
             videoAdapter.releasePlayer();
         }
