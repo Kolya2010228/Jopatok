@@ -15,10 +15,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.CompoundButton;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -74,8 +72,6 @@ public class MainActivity extends AppCompatActivity {
     private int resizeMode = 0;
     private String[] resizeModes = {"Fit", "Fill", "Zoom"};
 
-    private Switch shuffleSwitch;
-    private Switch loopSwitch;
     private PowerManager.WakeLock wakeLock;
 
     @Override
@@ -157,43 +153,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Находим Switch в меню
-        View shuffleView = navigationView.getMenu().findItem(R.id.nav_shuffle).getActionView();
-        if (shuffleView != null) {
-            shuffleSwitch = shuffleView.findViewById(R.id.menu_switch);
-            if (shuffleSwitch != null) {
-                shuffleSwitch.setText("Перемешать видео");
-                shuffleSwitch.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(android.widget.CompoundButton btn, boolean isChecked) {
-                        shuffleVideos = isChecked;
-                        prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
-                        Toast.makeText(MainActivity.this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
-                        loadVideos();
-                    }
-                });
-            }
-        }
-
-        View loopView = navigationView.getMenu().findItem(R.id.nav_loop).getActionView();
-        if (loopView != null) {
-            loopSwitch = loopView.findViewById(R.id.menu_switch);
-            if (loopSwitch != null) {
-                loopSwitch.setText("Повтор видео");
-                loopSwitch.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
-                    @Override
-                    public void onCheckedChanged(android.widget.CompoundButton btn, boolean isChecked) {
-                        loopVideo = isChecked;
-                        prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
-                        if (player != null) {
-                            player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
-                        }
-                        Toast.makeText(MainActivity.this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-        }
-
         navigationView.setNavigationItemSelectedListener(this::onNavigationItemSelected);
 
         Button selectFolderBtn = findViewById(R.id.selectFolderBtn);
@@ -231,7 +190,21 @@ public class MainActivity extends AppCompatActivity {
     private boolean onNavigationItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
 
-        if (id == R.id.nav_speed) {
+        if (id == R.id.nav_shuffle) {
+            shuffleVideos = !item.isChecked();
+            item.setChecked(shuffleVideos);
+            prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
+            Toast.makeText(this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+            loadVideos();
+        } else if (id == R.id.nav_loop) {
+            loopVideo = !item.isChecked();
+            item.setChecked(loopVideo);
+            prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
+            if (player != null) {
+                player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+            }
+            Toast.makeText(this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_speed) {
             showSpeedDialog();
         } else if (id == R.id.nav_zoom) {
             resizeMode = (resizeMode + 1) % 3;
@@ -297,8 +270,11 @@ public class MainActivity extends AppCompatActivity {
         playbackSpeed = prefs.getFloat(PREF_PLAYBACK_SPEED, 1.0f);
         resizeMode = prefs.getInt(PREF_RESIZE_MODE, 0);
 
-        if (shuffleSwitch != null) shuffleSwitch.setChecked(shuffleVideos);
-        if (loopSwitch != null) loopSwitch.setChecked(loopVideo);
+        MenuItem shuffleItem = navigationView.getMenu().findItem(R.id.nav_shuffle);
+        if (shuffleItem != null) shuffleItem.setChecked(shuffleVideos);
+
+        MenuItem loopItem = navigationView.getMenu().findItem(R.id.nav_loop);
+        if (loopItem != null) loopItem.setChecked(loopVideo);
 
         MenuItem speedItem = navigationView.getMenu().findItem(R.id.nav_speed);
         if (speedItem != null) {

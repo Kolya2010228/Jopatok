@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <group android:checkableBehavior="none">
+    <group android:checkableBehavior="single">
         <item
             android:id="@+id/nav_shuffle"
+            android:checkable="true"
             android:icon="@drawable/ic_settings"
-            android:title="Перемешать видео"
-            app:actionLayout="@layout/menu_switch" />
+            android:title="Перемешать видео" />
 
         <item
             android:id="@+id/nav_loop"
+            android:checkable="true"
             android:icon="@drawable/ic_settings"
-            android:title="Повтор видео"
-            app:actionLayout="@layout/menu_switch" />
+            android:title="Повтор видео" />
     </group>
 
     <group android:checkableBehavior="none">
