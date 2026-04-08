@@ -54,46 +54,11 @@ jobs:
         id: build
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --info 2>&1 | tee build_output.txt || {
-            echo "::group::BUILD ERROR OUTPUT"
-            echo "BUILD FAILED - full output:"
-            cat build_output.txt | grep -i -A5 -E "error:|Error:|failed:|FAILED" | tail -200
-            echo "::endgroup::"
-            exit 1
-          }
+          ./gradlew assembleRelease --no-daemon
           APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
           echo "Found APK: $APK_PATH"
           ls -la "$APK_PATH" 2>/dev/null
-
-      - name: Sign APK
-        id: sign
-        run: |
-          export ANDROID_HOME=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}
-          APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
-          UNSIGNED_PATH="${APK_PATH}"
-          SIGNED_PATH="${APK_PATH%.apk}-signed.apk"
-
-          # Decode keystore from repo
-          base64 -d keystore.b64 > jopatok-signing.jks
-
-          # Find apksigner
-          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" -type f | head -1)
-          echo "Using apksigner: $APKSIGNER"
-
-          # Sign APK with our keystore
-          "$APKSIGNER" sign \
-            --ks jopatok-signing.jks \
-            --ks-key-alias jopatok \
-            --ks-pass pass:JopatokRelease2026 \
-            --key-pass pass:JopatokRelease2026 \
-            --out "$SIGNED_PATH" \
-            "$UNSIGNED_PATH"
-
-          echo "APK signed: $SIGNED_PATH"
-          ls -la "$SIGNED_PATH"
-
-          echo "apk_path=$SIGNED_PATH" >> $GITHUB_OUTPUT
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
