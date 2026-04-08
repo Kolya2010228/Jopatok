@@ -16,13 +16,25 @@
         app:show_buffering="when_playing"
         app:use_controller="false" />
 
-    <!-- Оверлей с информацией о видео (как в TikTok) -->
+    <!-- Кнопка паузы/воспроизведения -->
+    <ImageButton
+        android:id="@+id/playPauseBtn"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:layout_gravity="center"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_media_pause"
+        android:contentDescription="Play/Pause"
+        android:alpha="0.8"
+        android:visibility="gone" />
+
+    <!-- Оверлей с информацией о видео -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:layout_margin="16dp"
-        android:layout_marginBottom="80dp"
+        android:layout_marginBottom="40dp"
         android:orientation="vertical">
 
         <TextView
@@ -50,6 +62,5 @@
             android:shadowRadius="4" />
 
     </LinearLayout>
-
 
 </FrameLayout>
