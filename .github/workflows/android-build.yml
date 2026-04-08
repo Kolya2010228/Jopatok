@@ -30,12 +30,19 @@ jobs:
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > jopatok-release.jks
             echo "status=signed" >> $GITHUB_OUTPUT
-            echo "Keystore setup complete"
+            echo "Keystore from secret"
           else
-            echo "status=unsigned" >> $GITHUB_OUTPUT
-            echo "::warning::KEYSTORE_BASE64 secret not set"
+            echo "::warning::KEYSTORE_BASE64 not set, generating temporary keystore"
+            keytool -genkeypair -v \
+              -keystore jopatok-release.jks \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -alias jopatok \
+              -storepass JopatokRelease2026 \
+              -keypass JopatokRelease2026 \
+              -dname "CN=Jopatok, OU=Jopatok, O=Jopatok, L=Unknown, ST=Unknown, C=US"
+            echo "status=signed" >> $GITHUB_OUTPUT
+            echo "Generated temporary keystore"
           fi
-        continue-on-error: true
 
       - name: Get Latest Release Tag
         id: latest_release
