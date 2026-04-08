@@ -26,7 +26,13 @@ jobs:
 
       - name: Setup Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > jopatok-release.jks
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > jopatok-release.jks
+            echo "Keystore setup complete"
+          else
+            echo "::warning::KEYSTORE_BASE64 secret not set, building unsigned APK"
+          fi
+        continue-on-error: true
 
       - name: Get Latest Release Tag
         id: latest_release
