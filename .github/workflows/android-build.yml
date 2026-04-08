@@ -25,12 +25,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Setup Keystore
+        id: keystore
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > jopatok-release.jks
+            echo "status=signed" >> $GITHUB_OUTPUT
             echo "Keystore setup complete"
           else
-            echo "::warning::KEYSTORE_BASE64 secret not set, building unsigned APK"
+            echo "status=unsigned" >> $GITHUB_OUTPUT
+            echo "::warning::KEYSTORE_BASE64 secret not set"
           fi
         continue-on-error: true
 
@@ -63,27 +66,38 @@ jobs:
           echo "Next version: $NEXT_VERSION"
 
       - name: Build Release APK
+        id: build
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon -PKEYSTORE_PATH=jopatok-release.jks -PKEYSTORE_PASSWORD=JopatokRelease2026 -PKEY_ALIAS=jopatok -PKEY_PASSWORD=JopatokRelease2026
-
-      - name: Find APK
-        id: find_apk
-        run: |
-          APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
+          if [ "${{ steps.keystore.outputs.status }}" = "signed" ]; then
+            echo "Building SIGNED release..."
+            ./gradlew assembleRelease --no-daemon \
+              -PKEYSTORE_PATH=jopatok-release.jks \
+              -PKEYSTORE_PASSWORD=JopatokRelease2026 \
+              -PKEY_ALIAS=jopatok \
+              -PKEY_PASSWORD=JopatokRelease2026
+            # Find the signed APK
+            APK_PATH=$(find app/build/outputs -name "*.apk" ! -name "*unsigned*" | head -1)
+          else
+            echo "Building UNSIGNED release..."
+            ./gradlew assembleRelease --no-daemon
+            APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
+          fi
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
           echo "Found APK: $APK_PATH"
+          ls -la "$APK_PATH" 2>/dev/null || echo "APK not found!"
+          find app/build/outputs -name "*.apk" -exec ls -la {} \;
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: jopatok-release
-          path: ${{ steps.find_apk.outputs.apk_path }}
+          path: ${{ steps.build.outputs.apk_path }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.find_apk.outputs.apk_path }}
+          files: ${{ steps.build.outputs.apk_path }}
           tag_name: ${{ steps.next_version.outputs.next_version }}
           name: Release ${{ steps.next_version.outputs.next_version }}
           generate_release_notes: true
