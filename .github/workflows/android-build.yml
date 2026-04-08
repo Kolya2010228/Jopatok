@@ -74,24 +74,19 @@ jobs:
           UNSIGNED_PATH="${APK_PATH}"
           SIGNED_PATH="${APK_PATH%.apk}-signed.apk"
 
-          # Generate keystore
-          keytool -genkeypair -v \
-            -keystore debug.keystore \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -alias debug \
-            -storepass android -keypass android \
-            -dname "CN=Android Debug,O=Android,C=US"
+          # Decode keystore from repo
+          base64 -d keystore.b64 > jopatok-signing.jks
 
           # Find apksigner
           APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" -type f | head -1)
           echo "Using apksigner: $APKSIGNER"
 
-          # Sign APK
+          # Sign APK with our keystore
           "$APKSIGNER" sign \
-            --ks debug.keystore \
-            --ks-key-alias debug \
-            --ks-pass pass:android \
-            --key-pass pass:android \
+            --ks jopatok-signing.jks \
+            --ks-key-alias jopatok \
+            --ks-pass pass:JopatokRelease2026 \
+            --key-pass pass:JopatokRelease2026 \
             --out "$SIGNED_PATH" \
             "$UNSIGNED_PATH"
 
