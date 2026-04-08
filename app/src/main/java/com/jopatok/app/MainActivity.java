@@ -157,17 +157,20 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Находим SwitchCompat в меню
+        // Находим Switch в меню
         View shuffleView = navigationView.getMenu().findItem(R.id.nav_shuffle).getActionView();
         if (shuffleView != null) {
             shuffleSwitch = shuffleView.findViewById(R.id.menu_switch);
             if (shuffleSwitch != null) {
                 shuffleSwitch.setText("Перемешать видео");
-                shuffleSwitch.setOnCheckedChangeListener((CompoundButton.OnCheckedChangeListener) (btn, isChecked) -> {
-                    shuffleVideos = isChecked;
-                    prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
-                    Toast.makeText(this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
-                    loadVideos();
+                shuffleSwitch.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(android.widget.CompoundButton btn, boolean isChecked) {
+                        shuffleVideos = isChecked;
+                        prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
+                        Toast.makeText(MainActivity.this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+                        loadVideos();
+                    }
                 });
             }
         }
@@ -177,13 +180,16 @@ public class MainActivity extends AppCompatActivity {
             loopSwitch = loopView.findViewById(R.id.menu_switch);
             if (loopSwitch != null) {
                 loopSwitch.setText("Повтор видео");
-                loopSwitch.setOnCheckedChangeListener((CompoundButton.OnCheckedChangeListener) (btn, isChecked) -> {
-                    loopVideo = isChecked;
-                    prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
-                    if (player != null) {
-                        player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+                loopSwitch.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(android.widget.CompoundButton btn, boolean isChecked) {
+                        loopVideo = isChecked;
+                        prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
+                        if (player != null) {
+                            player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+                        }
+                        Toast.makeText(MainActivity.this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
                     }
-                    Toast.makeText(this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
                 });
             }
         }
