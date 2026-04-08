@@ -12,4 +12,3 @@ local.properties
 # Keystore - NEVER commit!
 *.jks
 *.keystore
-KEYSTORE_BASE64.txt
