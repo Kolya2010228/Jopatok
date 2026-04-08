@@ -15,8 +15,10 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.CompoundButton;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,7 +32,6 @@ import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.google.android.material.navigation.NavigationView;
-import com.google.android.material.switchmaterial.SwitchMaterial;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -73,8 +74,8 @@ public class MainActivity extends AppCompatActivity {
     private int resizeMode = 0;
     private String[] resizeModes = {"Fit", "Fill", "Zoom"};
 
-    private SwitchMaterial shuffleSwitch;
-    private SwitchMaterial loopSwitch;
+    private Switch shuffleSwitch;
+    private Switch loopSwitch;
     private PowerManager.WakeLock wakeLock;
 
     @Override
@@ -160,27 +161,31 @@ public class MainActivity extends AppCompatActivity {
         View shuffleView = navigationView.getMenu().findItem(R.id.nav_shuffle).getActionView();
         if (shuffleView != null) {
             shuffleSwitch = shuffleView.findViewById(R.id.menu_switch);
-            shuffleSwitch.setText("Перемешать видео");
-            shuffleSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
-                shuffleVideos = isChecked;
-                prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
-                Toast.makeText(this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
-                loadVideos();
-            });
+            if (shuffleSwitch != null) {
+                shuffleSwitch.setText("Перемешать видео");
+                shuffleSwitch.setOnCheckedChangeListener((CompoundButton.OnCheckedChangeListener) (btn, isChecked) -> {
+                    shuffleVideos = isChecked;
+                    prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
+                    Toast.makeText(this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+                    loadVideos();
+                });
+            }
         }
 
         View loopView = navigationView.getMenu().findItem(R.id.nav_loop).getActionView();
         if (loopView != null) {
             loopSwitch = loopView.findViewById(R.id.menu_switch);
-            loopSwitch.setText("Повтор видео");
-            loopSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
-                loopVideo = isChecked;
-                prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
-                if (player != null) {
-                    player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
-                }
-                Toast.makeText(this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
-            });
+            if (loopSwitch != null) {
+                loopSwitch.setText("Повтор видео");
+                loopSwitch.setOnCheckedChangeListener((CompoundButton.OnCheckedChangeListener) (btn, isChecked) -> {
+                    loopVideo = isChecked;
+                    prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
+                    if (player != null) {
+                        player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+                    }
+                    Toast.makeText(this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+                });
+            }
         }
 
         navigationView.setNavigationItemSelectedListener(this::onNavigationItemSelected);
