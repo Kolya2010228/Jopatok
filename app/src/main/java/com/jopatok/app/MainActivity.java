@@ -15,7 +15,10 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -141,21 +144,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
                 int id = item.getItemId();
-                if (id == R.id.nav_shuffle) {
-                    shuffleVideos = !item.isChecked();
-                    item.setChecked(shuffleVideos);
-                    prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
-                    Toast.makeText(MainActivity.this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
-                    loadVideos();
-                } else if (id == R.id.nav_loop) {
-                    loopVideo = !item.isChecked();
-                    item.setChecked(loopVideo);
-                    prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
-                    if (player != null) {
-                        player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
-                    }
-                    Toast.makeText(MainActivity.this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
-                } else if (id == R.id.nav_speed) {
+                if (id == R.id.nav_speed) {
                     showSpeedDialog();
                 } else if (id == R.id.nav_zoom) {
                     resizeMode = (resizeMode + 1) % 3;
@@ -171,6 +160,31 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+
+        // Настроить Switch для shuffle и loop
+        setupMenuSwitch(R.id.nav_shuffle, "Перемешать видео",
+            new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton btn, boolean isChecked) {
+                    shuffleVideos = isChecked;
+                    prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
+                    Toast.makeText(MainActivity.this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+                    loadVideos();
+                }
+            });
+
+        setupMenuSwitch(R.id.nav_loop, "Повтор видео",
+            new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton btn, boolean isChecked) {
+                    loopVideo = isChecked;
+                    prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
+                    if (player != null) {
+                        player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+                    }
+                    Toast.makeText(MainActivity.this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+                }
+            });
 
         Button selectFolderBtn = findViewById(R.id.selectFolderBtn);
         selectFolderBtn.setOnClickListener(new View.OnClickListener() {
@@ -188,6 +202,31 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         swipeRefreshLayout.setColorSchemeResources(R.color.purple_500, R.color.purple_700);
+    }
+
+    private void setupMenuSwitch(int menuItemId, String label, CompoundButton.OnCheckedChangeListener listener) {
+        MenuItem item = navigationView.getMenu().findItem(menuItemId);
+        if (item == null) return;
+
+        View actionView = item.getActionView();
+        if (actionView == null) return;
+
+        Switch switchView = actionView.findViewById(R.id.menu_switch);
+        TextView labelView = actionView.findViewById(R.id.menu_label);
+        ImageView iconView = actionView.findViewById(R.id.menu_icon);
+
+        if (labelView != null) labelView.setText(label);
+        if (iconView != null) iconView.setImageResource(R.drawable.ic_settings);
+        if (switchView != null) switchView.setOnCheckedChangeListener(listener);
+    }
+
+    private void updateMenuSwitch(int menuItemId, boolean checked) {
+        MenuItem item = navigationView.getMenu().findItem(menuItemId);
+        if (item == null) return;
+        View actionView = item.getActionView();
+        if (actionView == null) return;
+        Switch switchView = actionView.findViewById(R.id.menu_switch);
+        if (switchView != null) switchView.setChecked(checked);
     }
 
     private void showSpeedDialog() {
@@ -241,11 +280,8 @@ public class MainActivity extends AppCompatActivity {
         playbackSpeed = prefs.getFloat(PREF_PLAYBACK_SPEED, 1.0f);
         resizeMode = prefs.getInt(PREF_RESIZE_MODE, 0);
 
-        MenuItem shuffleItem = navigationView.getMenu().findItem(R.id.nav_shuffle);
-        if (shuffleItem != null) shuffleItem.setChecked(shuffleVideos);
-
-        MenuItem loopItem = navigationView.getMenu().findItem(R.id.nav_loop);
-        if (loopItem != null) loopItem.setChecked(loopVideo);
+        updateMenuSwitch(R.id.nav_shuffle, shuffleVideos);
+        updateMenuSwitch(R.id.nav_loop, loopVideo);
 
         MenuItem speedItem = navigationView.getMenu().findItem(R.id.nav_speed);
         if (speedItem != null) {
