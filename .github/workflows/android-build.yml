@@ -67,10 +67,23 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon -PKEYSTORE_PATH=jopatok-release.jks -PKEYSTORE_PASSWORD=JopatokRelease2026 -PKEY_ALIAS=jopatok -PKEY_PASSWORD=JopatokRelease2026
 
+      - name: Find APK
+        id: find_apk
+        run: |
+          APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK_PATH"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jopatok-release
+          path: ${{ steps.find_apk.outputs.apk_path }}
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/app-release.apk
+          files: ${{ steps.find_apk.outputs.apk_path }}
           tag_name: ${{ steps.next_version.outputs.next_version }}
           name: Release ${{ steps.next_version.outputs.next_version }}
           generate_release_notes: true
