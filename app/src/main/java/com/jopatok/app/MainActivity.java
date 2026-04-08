@@ -120,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
 
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             private int lastIdlePosition = 0;
+            private boolean isFirstLoad = true;
 
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
@@ -129,9 +130,17 @@ public class MainActivity extends AppCompatActivity {
                     View snapView = snapHelper.findSnapView(recyclerView.getLayoutManager());
                     if (snapView != null) {
                         int position = recyclerView.getChildAdapterPosition(snapView);
-                        if (position >= 0 && position != lastIdlePosition && position != videoAdapter.getCurrentPlayingPosition()) {
-                            Log.d(TAG, "Scroll idle at position: " + position);
-                            videoAdapter.playVideoAt(position);
+                        if (position >= 0) {
+                            if (isFirstLoad) {
+                                // Первый запуск — сразу играем
+                                isFirstLoad = false;
+                                if (position != videoAdapter.getCurrentPlayingPosition()) {
+                                    videoAdapter.playVideoAt(position);
+                                }
+                            } else if (position != lastIdlePosition && position != videoAdapter.getCurrentPlayingPosition()) {
+                                Log.d(TAG, "Scroll idle, switching to position: " + position);
+                                videoAdapter.playVideoAt(position);
+                            }
                             lastIdlePosition = position;
                         }
                     }

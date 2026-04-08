@@ -6,7 +6,6 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.AnimationUtils;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -19,13 +18,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Адаптер для ленты видео с прелоадом и двойным тапом
+ * Адаптер для ленты видео
  */
 public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHolder> {
 
     private static final String TAG = "VideoAdapter";
-    private static final int PRELOAD_COUNT = 2; // Прелоадим 2 следующих видео
-    private static final long DOUBLE_TAP_TIMEOUT = 300; // мс между тапами
+    private static final long DOUBLE_TAP_TIMEOUT = 300;
 
     private List<VideoItem> videos = new ArrayList<>();
     private Context context;
@@ -43,7 +41,6 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
         this.videos = videos != null ? videos : new ArrayList<>();
         currentPlayingPosition = videos != null && !videos.isEmpty() ? 0 : -1;
         notifyDataSetChanged();
-        preloadNext();
     }
 
     public void setResizeMode(int mode) {
@@ -80,7 +77,7 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             return;
         }
 
-        Log.d(TAG, "Playing video at position: " + position);
+        Log.d(TAG, "Switching to video at position: " + position);
 
         int previousPosition = currentPlayingPosition;
         currentPlayingPosition = position;
@@ -89,35 +86,6 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             notifyItemChanged(previousPosition);
         }
         notifyItemChanged(position);
-
-        // Прелоад следующих видео при переключении
-        preloadNext();
-    }
-
-    /**
-     * Прелоад следующих видео для плавных переходов
-     */
-    private void preloadNext() {
-        if (player == null || videos.isEmpty()) return;
-
-        for (int i = 1; i <= PRELOAD_COUNT; i++) {
-            int nextPosition = currentPlayingPosition + i;
-            if (nextPosition >= 0 && nextPosition < videos.size()) {
-                VideoItem nextVideo = videos.get(nextPosition);
-                if (nextVideo != null && nextVideo.getUri() != null) {
-                    MediaItem mediaItem = MediaItem.fromUri(nextVideo.getUri());
-                    player.addMediaItem(mediaItem);
-                }
-            }
-        }
-        player.prepare();
-        Log.d(TAG, "Preloaded next " + PRELOAD_COUNT + " videos");
-    }
-
-    public void releasePlayer() {
-        if (player != null) {
-            player.release();
-        }
     }
 
     public int getCurrentPlayingPosition() {
@@ -149,7 +117,7 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             final int playingPos = currentPlayingPosition;
             boolean isActive = (position == playingPos);
 
-            Log.d(TAG, "Binding position " + position + ", active=" + isActive);
+            Log.d(TAG, "Bind position " + position + ", active=" + isActive + ", playingPos=" + playingPos);
 
             if (videoTitle != null && video.getTitle() != null) {
                 videoTitle.setText(video.getTitle());
@@ -163,9 +131,9 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             }
 
             if (isActive) {
+                // Активное видео — показываем и запускаем
                 playerView.setVisibility(View.VISIBLE);
 
-                // Анимация появления
                 if (videoContainer != null) {
                     videoContainer.setAlpha(0f);
                     videoContainer.animate().alpha(1f).setDuration(300).start();
@@ -175,55 +143,42 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
                     playerView.setPlayer(player);
 
                     if (currentPlayingPosition == playingPos) {
-                        // Проверяем, не загружено ли уже видео в плейлисте
-                        if (player.getMediaItemCount() == 0) {
-                            MediaItem mediaItem = MediaItem.fromUri(video.getUri());
-                            player.setMediaItem(mediaItem);
-                            player.prepare();
-                        }
+                        // Очищаем очередь и загружаем новое видео
+                        player.clearMediaItems();
+                        MediaItem mediaItem = MediaItem.fromUri(video.getUri());
+                        player.setMediaItem(mediaItem);
+                        player.prepare();
                         player.play();
+
+                        Log.d(TAG, "Playing video at position " + position);
                     }
                 }
 
-                // Обработка тапа: одинарный = пауза, двойной = перемотка
+                // Обработка тапа
                 if (videoContainer != null) {
                     videoContainer.setOnClickListener(v -> {
                         long now = System.currentTimeMillis();
                         if (now - lastTapTime < DOUBLE_TAP_TIMEOUT) {
-                            // Двойной тап — перемотка (не делаем здесь, ждём onDoubleTap)
+                            doubleTapSeek(v);
+                            lastTapTime = 0;
                             return;
                         }
                         lastTapTime = now;
 
-                        // Одинарный тап с задержкой для определения двойного
                         videoContainer.postDelayed(() -> {
                             if (System.currentTimeMillis() - lastTapTime >= DOUBLE_TAP_TIMEOUT) {
                                 togglePlayPause();
                             }
                         }, DOUBLE_TAP_TIMEOUT);
                     });
-
-                    videoContainer.setOnTouchListener((v, event) -> {
-                        if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                            long now = System.currentTimeMillis();
-                            if (now - lastTapTime < DOUBLE_TAP_TIMEOUT) {
-                                // Двойной тап — перемотка ±10 сек
-                                doubleTapSeek(v);
-                                lastTapTime = 0;
-                                return true;
-                            }
-                            lastTapTime = now;
-                        }
-                        return false;
-                    });
                 }
 
             } else {
+                // Неактивное видео — скрываем
                 playerView.setVisibility(View.GONE);
                 playerView.setPlayer(null);
                 if (videoContainer != null) {
                     videoContainer.setOnClickListener(null);
-                    videoContainer.setOnTouchListener(null);
                     videoContainer.setAlpha(1f);
                 }
             }
@@ -243,23 +198,13 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
         private void doubleTapSeek(View view) {
             if (player == null) return;
 
-            // Определяем, где был тап — слева или справа
-            float x = view.getWidth() / 2;
-            float eventX = 0;
-            // Используем половину экрана: левая = -10с, правая = +10с
-
             long currentPos = player.getCurrentPosition();
             long duration = player.getDuration();
-            long seekTo;
-
-            // Двойной тап по центру = +10 сек (по умолчанию)
-            // Для упрощения: всегда +10 сек
-            seekTo = Math.min(currentPos + 10000, duration);
+            long seekTo = Math.min(currentPos + 10000, duration);
 
             player.seekTo(seekTo);
             Toast.makeText(context, "⏩ +10 сек", Toast.LENGTH_SHORT).show();
 
-            // Анимация при перемотке
             view.animate().scaleX(1.05f).scaleY(1.05f)
                 .setDuration(100)
                 .withEndAction(() -> view.animate().scaleX(1f).scaleY(1f).setDuration(100).start())
@@ -273,7 +218,6 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             }
             if (videoContainer != null) {
                 videoContainer.setOnClickListener(null);
-                videoContainer.setOnTouchListener(null);
                 videoContainer.setAlpha(1f);
             }
         }
