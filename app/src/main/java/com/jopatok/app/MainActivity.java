@@ -12,10 +12,8 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ImageButton;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -30,8 +28,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
-import com.google.android.material.button.MaterialButton;
 import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -71,8 +69,11 @@ public class MainActivity extends AppCompatActivity {
     private boolean shuffleVideos = false;
     private boolean loopVideo = false;
     private float playbackSpeed = 1.0f;
-    private int resizeMode = 0; // 0=fit, 1=fill, 2=zoom
+    private int resizeMode = 0;
     private String[] resizeModes = {"Fit", "Fill", "Zoom"};
+
+    private SwitchMaterial shuffleSwitch;
+    private SwitchMaterial loopSwitch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,7 +84,6 @@ public class MainActivity extends AppCompatActivity {
             prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             videoManager = new VideoManager(this);
 
-            // Инициализация ExoPlayer
             player = new ExoPlayer.Builder(this)
                 .setHandleAudioBecomingNoisy(true)
                 .build();
@@ -108,16 +108,13 @@ public class MainActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawerLayout);
         navigationView = findViewById(R.id.navigationView);
 
-        // Настройка RecyclerView для вертикальных свайпов
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         snapHelper = new PagerSnapHelper();
         snapHelper.attachToRecyclerView(recyclerView);
 
-        // Создаем адаптер с общим плеером
         videoAdapter = new VideoAdapter(this, player);
         recyclerView.setAdapter(videoAdapter);
 
-        // Отслеживание скролла для авто-переключения видео
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             private int lastIdlePosition = 0;
 
@@ -139,7 +136,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Кнопка настроек открывает drawer
         settingsBtn.setOnClickListener(v -> {
             if (drawerLayout.isDrawerOpen(GravityCompat.END)) {
                 drawerLayout.closeDrawer(GravityCompat.END);
@@ -148,41 +144,50 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Обработка пунктов меню
+        // Находим SwitchCompat в меню
+        View shuffleView = navigationView.getMenu().findItem(R.id.nav_shuffle).getActionView();
+        if (shuffleView != null) {
+            shuffleSwitch = shuffleView.findViewById(R.id.menu_switch);
+            shuffleSwitch.setText("Перемешать видео");
+            shuffleSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
+                shuffleVideos = isChecked;
+                prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
+                Toast.makeText(this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+                loadVideos();
+            });
+        }
+
+        View loopView = navigationView.getMenu().findItem(R.id.nav_loop).getActionView();
+        if (loopView != null) {
+            loopSwitch = loopView.findViewById(R.id.menu_switch);
+            loopSwitch.setText("Повтор видео");
+            loopSwitch.setOnCheckedChangeListener((btn, isChecked) -> {
+                loopVideo = isChecked;
+                prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
+                if (player != null) {
+                    player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+                }
+                Toast.makeText(this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+            });
+        }
+
         navigationView.setNavigationItemSelectedListener(this::onNavigationItemSelected);
 
-        // Кнопка выбора папки
         Button selectFolderBtn = findViewById(R.id.selectFolderBtn);
         selectFolderBtn.setOnClickListener(v -> {
             drawerLayout.closeDrawer(GravityCompat.END);
             pickFolder();
         });
 
-        // Обновление по свайпу
         swipeRefreshLayout.setOnRefreshListener(this::loadVideos);
-        swipeRefreshLayout.setColorSchemeResources(
-            R.color.purple_500,
-            R.color.purple_700
-        );
+        swipeRefreshLayout.setColorSchemeResources(R.color.purple_500, R.color.purple_700);
     }
 
     private boolean onNavigationItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
 
-        if (id == R.id.nav_shuffle) {
-            shuffleVideos = !shuffleVideos;
-            item.setChecked(shuffleVideos);
-            prefs.edit().putBoolean(PREF_SHUFFLE_VIDEOS, shuffleVideos).apply();
-            Toast.makeText(this, "Перемешивание: " + (shuffleVideos ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
-            loadVideos();
-        } else if (id == R.id.nav_loop) {
-            loopVideo = !loopVideo;
-            item.setChecked(loopVideo);
-            prefs.edit().putBoolean(PREF_LOOP_VIDEO, loopVideo).apply();
-            if (player != null) {
-                player.setRepeatMode(loopVideo ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
-            }
-            Toast.makeText(this, "Повтор: " + (loopVideo ? "ВКЛ" : "ВЫКЛ"), Toast.LENGTH_SHORT).show();
+        if (id == R.id.nav_speed) {
+            showSpeedDialog();
         } else if (id == R.id.nav_zoom) {
             resizeMode = (resizeMode + 1) % 3;
             item.setTitle("Масштаб: " + resizeModes[resizeMode]);
@@ -192,8 +197,6 @@ public class MainActivity extends AppCompatActivity {
         } else if (id == R.id.nav_folder) {
             drawerLayout.closeDrawer(GravityCompat.END);
             showSettingsDialog();
-        } else if (id == R.id.nav_speed) {
-            showSpeedDialog();
         }
 
         drawerLayout.closeDrawer(GravityCompat.END);
@@ -218,6 +221,11 @@ public class MainActivity extends AppCompatActivity {
                 prefs.edit().putFloat(PREF_PLAYBACK_SPEED, playbackSpeed).apply();
                 if (player != null) {
                     player.setPlaybackSpeed(playbackSpeed);
+                }
+                // Обновляем пункт меню
+                MenuItem speedItem = navigationView.getMenu().findItem(R.id.nav_speed);
+                if (speedItem != null) {
+                    speedItem.setTitle("Скорость: " + speeds[which]);
                 }
                 Toast.makeText(this, "Скорость: " + speeds[which], Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
@@ -244,16 +252,17 @@ public class MainActivity extends AppCompatActivity {
         playbackSpeed = prefs.getFloat(PREF_PLAYBACK_SPEED, 1.0f);
         resizeMode = prefs.getInt(PREF_RESIZE_MODE, 0);
 
-        // Обновляем UI настрое
-        if (navigationView != null) {
-            MenuItem shuffleItem = navigationView.getMenu().findItem(R.id.nav_shuffle);
-            if (shuffleItem != null) shuffleItem.setChecked(shuffleVideos);
+        if (shuffleSwitch != null) shuffleSwitch.setChecked(shuffleVideos);
+        if (loopSwitch != null) loopSwitch.setChecked(loopVideo);
 
-            MenuItem loopItem = navigationView.getMenu().findItem(R.id.nav_loop);
-            if (loopItem != null) loopItem.setChecked(loopVideo);
+        MenuItem speedItem = navigationView.getMenu().findItem(R.id.nav_speed);
+        if (speedItem != null) {
+            speedItem.setTitle("Скорость: " + playbackSpeed + "x");
+        }
 
-            MenuItem zoomItem = navigationView.getMenu().findItem(R.id.nav_zoom);
-            if (zoomItem != null) zoomItem.setTitle("Масштаб: " + resizeModes[resizeMode]);
+        MenuItem zoomItem = navigationView.getMenu().findItem(R.id.nav_zoom);
+        if (zoomItem != null) {
+            zoomItem.setTitle("Масштаб: " + resizeModes[resizeMode]);
         }
 
         if (player != null) {

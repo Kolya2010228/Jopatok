@@ -6,8 +6,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.media3.common.MediaItem;
@@ -26,7 +26,7 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
     private Context context;
     private Player player;
     private int currentPlayingPosition = -1;
-    private int resizeMode = 0; // 0=fit, 1=fill, 2=zoom
+    private int resizeMode = 0;
 
     public VideoAdapter(Context context, Player player) {
         this.context = context;
@@ -100,7 +100,6 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
         private FrameLayout videoContainer;
         private TextView videoTitle;
         private TextView videoFolder;
-        private ImageButton playPauseBtn;
 
         public VideoViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -108,7 +107,6 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             videoContainer = itemView.findViewById(R.id.videoContainer);
             videoTitle = itemView.findViewById(R.id.videoTitle);
             videoFolder = itemView.findViewById(R.id.videoFolder);
-            playPauseBtn = itemView.findViewById(R.id.playPauseBtn);
         }
 
         public void bind(int position) {
@@ -120,9 +118,8 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             final int playingPos = currentPlayingPosition;
             boolean isActive = (position == playingPos);
 
-            Log.d(TAG, "Binding position " + position + ", active=" + isActive + ", uri=" + (video.getUri() != null));
+            Log.d(TAG, "Binding position " + position + ", active=" + isActive);
 
-            // Устанавливаем информацию о видео
             if (videoTitle != null && video.getTitle() != null) {
                 videoTitle.setText(video.getTitle());
             }
@@ -130,16 +127,12 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
                 videoFolder.setText(video.getFolderName());
             }
 
-            // Устанавливаем resizeMode
             if (playerView != null) {
                 playerView.setResizeMode(resizeMode);
             }
 
             if (isActive) {
                 playerView.setVisibility(View.VISIBLE);
-                if (playPauseBtn != null) {
-                    playPauseBtn.setVisibility(View.VISIBLE);
-                }
 
                 if (player != null && video.getUri() != null) {
                     playerView.setPlayer(player);
@@ -149,51 +142,28 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
                         player.setMediaItem(mediaItem);
                         player.prepare();
                         player.play();
-
-                        // Обновляем иконку play/pause
-                        updatePlayPauseIcon(true);
                     }
                 }
 
-                // Обработка клика на play/pause
-                if (playPauseBtn != null) {
-                    playPauseBtn.setOnClickListener(v -> {
+                // Тап по экрану = пауза/воспроизведение
+                if (videoContainer != null) {
+                    videoContainer.setOnClickListener(v -> {
                         if (player == null) return;
                         if (player.isPlaying()) {
                             player.pause();
-                            updatePlayPauseIcon(false);
+                            Toast.makeText(context, "⏸ Пауза", Toast.LENGTH_SHORT).show();
                         } else {
                             player.play();
-                            updatePlayPauseIcon(true);
+                            Toast.makeText(context, "▶️ Воспроизведение", Toast.LENGTH_SHORT).show();
                         }
                     });
-                }
-
-                // Скрываем кнопку через 3 секунды
-                if (playPauseBtn != null) {
-                    playPauseBtn.postDelayed(() -> {
-                        if (playPauseBtn != null && player != null && player.isPlaying()) {
-                            playPauseBtn.setVisibility(View.GONE);
-                        }
-                    }, 3000);
                 }
 
             } else {
                 playerView.setVisibility(View.GONE);
                 playerView.setPlayer(null);
-                if (playPauseBtn != null) {
-                    playPauseBtn.setVisibility(View.GONE);
-                    playPauseBtn.setOnClickListener(null);
-                }
-            }
-        }
-
-        private void updatePlayPauseIcon(boolean isPlaying) {
-            if (playPauseBtn != null) {
-                if (isPlaying) {
-                    playPauseBtn.setImageResource(android.R.drawable.ic_media_pause);
-                } else {
-                    playPauseBtn.setImageResource(android.R.drawable.ic_media_play);
+                if (videoContainer != null) {
+                    videoContainer.setOnClickListener(null);
                 }
             }
         }
@@ -203,9 +173,8 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
                 playerView.setPlayer(null);
                 playerView.setVisibility(View.GONE);
             }
-            if (playPauseBtn != null) {
-                playPauseBtn.setVisibility(View.GONE);
-                playPauseBtn.setOnClickListener(null);
+            if (videoContainer != null) {
+                videoContainer.setOnClickListener(null);
             }
         }
     }

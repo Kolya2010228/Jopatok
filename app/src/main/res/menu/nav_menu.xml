@@ -1,33 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <group android:checkableBehavior="none">
-        <item android:title="Настройки воспроизведения">
-            <menu>
-                <item
-                    android:id="@+id/nav_speed"
-                    android:icon="@drawable/ic_settings"
-                    android:title="Скорость"
-                    android:actionLayout="@layout/nav_speed_selector" />
-            </menu>
-        </item>
-    </group>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <group android:checkableBehavior="single">
+    <group android:checkableBehavior="none">
         <item
             android:id="@+id/nav_shuffle"
-            android:checkable="true"
             android:icon="@drawable/ic_settings"
-            android:title="Перемешать видео" />
+            android:title="Перемешать видео"
+            app:actionLayout="@layout/menu_switch" />
+
         <item
             android:id="@+id/nav_loop"
-            android:checkable="true"
             android:icon="@drawable/ic_settings"
-            android:title="Повтор видео" />
+            android:title="Повтор видео"
+            app:actionLayout="@layout/menu_switch" />
     </group>
 
     <group android:checkableBehavior="none">
         <item android:title="Видео">
             <menu>
+                <item
+                    android:id="@+id/nav_speed"
+                    android:icon="@drawable/ic_settings"
+                    android:title="Скорость: 1x" />
                 <item
                     android:id="@+id/nav_zoom"
                     android:icon="@drawable/ic_settings"
