@@ -40,7 +40,6 @@ jobs:
         id: next_version
         run: |
           LATEST="${{ steps.latest_release.outputs.latest_tag }}"
-          # Extract version numbers (handle formats like v1.0.0, 1.0.0, auto-build-1, etc.)
           if [[ "$LATEST" =~ ^[vV]?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             MAJOR="${BASH_REMATCH[1]}"
             MINOR="${BASH_REMATCH[2]}"
@@ -48,20 +47,10 @@ jobs:
             NEXT_PATCH=$((PATCH + 1))
             NEXT_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
           else
-            # Default starting version
             NEXT_VERSION="1.0.0"
           fi
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
           echo "Next version: $NEXT_VERSION"
-
-      - name: Setup Keystore
-        run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > jopatok-release.jks
-            echo "Keystore configured"
-          else
-            echo "WARNING: No keystore secret configured, using debug signing"
-          fi
 
       - name: Build Release APK
         run: |
