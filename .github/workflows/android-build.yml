@@ -54,7 +54,11 @@ jobs:
         id: build
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build_output.txt || {
+            echo "BUILD FAILED - last 100 lines of output:"
+            tail -100 build_output.txt
+            exit 1
+          }
           APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
           echo "Found APK: $APK_PATH"
