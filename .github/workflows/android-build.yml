@@ -67,23 +67,27 @@ jobs:
           ls -la "$APK_PATH" 2>/dev/null
 
       - name: Sign APK
+        id: sign
         run: |
+          export ANDROID_HOME=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}
           APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
           UNSIGNED_PATH="${APK_PATH}"
           SIGNED_PATH="${APK_PATH%.apk}-signed.apk"
 
-          # Generate keystore if not exists
-          if [ ! -f debug.keystore ]; then
-            keytool -genkeypair -v \
-              -keystore debug.keystore \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -alias debug \
-              -storepass android -keypass android \
-              -dname "CN=Android Debug,O=Android,C=US"
-          fi
+          # Generate keystore
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias debug \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+          # Find apksigner
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name "apksigner" -type f | head -1)
+          echo "Using apksigner: $APKSIGNER"
 
           # Sign APK
-          $ANDROID_SDK_ROOT/build-tools/*/apksigner sign \
+          "$APKSIGNER" sign \
             --ks debug.keystore \
             --ks-key-alias debug \
             --ks-pass pass:android \
@@ -94,7 +98,6 @@ jobs:
           echo "APK signed: $SIGNED_PATH"
           ls -la "$SIGNED_PATH"
 
-          # Update output to point to signed APK
           echo "apk_path=$SIGNED_PATH" >> $GITHUB_OUTPUT
 
       - name: Upload APK artifact
