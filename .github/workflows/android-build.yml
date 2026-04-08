@@ -66,6 +66,37 @@ jobs:
           echo "Found APK: $APK_PATH"
           ls -la "$APK_PATH" 2>/dev/null
 
+      - name: Sign APK
+        run: |
+          APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
+          UNSIGNED_PATH="${APK_PATH}"
+          SIGNED_PATH="${APK_PATH%.apk}-signed.apk"
+
+          # Generate keystore if not exists
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -alias debug \
+              -storepass android -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # Sign APK
+          $ANDROID_SDK_ROOT/build-tools/*/apksigner sign \
+            --ks debug.keystore \
+            --ks-key-alias debug \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out "$SIGNED_PATH" \
+            "$UNSIGNED_PATH"
+
+          echo "APK signed: $SIGNED_PATH"
+          ls -la "$SIGNED_PATH"
+
+          # Update output to point to signed APK
+          echo "apk_path=$SIGNED_PATH" >> $GITHUB_OUTPUT
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
