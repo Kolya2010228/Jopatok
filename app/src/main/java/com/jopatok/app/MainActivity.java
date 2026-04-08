@@ -17,7 +17,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -162,7 +161,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // Настроить Switch для shuffle и loop
-        setupMenuSwitch(R.id.nav_shuffle, "Перемешать видео",
+        setupMenuSwitch(R.id.nav_shuffle,
             new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton btn, boolean isChecked) {
@@ -173,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
-        setupMenuSwitch(R.id.nav_loop, "Повтор видео",
+        setupMenuSwitch(R.id.nav_loop,
             new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton btn, boolean isChecked) {
@@ -204,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
         swipeRefreshLayout.setColorSchemeResources(R.color.purple_500, R.color.purple_700);
     }
 
-    private void setupMenuSwitch(int menuItemId, String label, CompoundButton.OnCheckedChangeListener listener) {
+    private void setupMenuSwitch(int menuItemId, CompoundButton.OnCheckedChangeListener listener) {
         MenuItem item = navigationView.getMenu().findItem(menuItemId);
         if (item == null) return;
 
@@ -212,11 +211,6 @@ public class MainActivity extends AppCompatActivity {
         if (actionView == null) return;
 
         Switch switchView = actionView.findViewById(R.id.menu_switch);
-        TextView labelView = actionView.findViewById(R.id.menu_label);
-        ImageView iconView = actionView.findViewById(R.id.menu_icon);
-
-        if (labelView != null) labelView.setText(label);
-        if (iconView != null) iconView.setImageResource(R.drawable.ic_settings);
         if (switchView != null) switchView.setOnCheckedChangeListener(listener);
     }
 
