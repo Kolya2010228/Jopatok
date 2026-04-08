@@ -15,28 +15,10 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    def keystorePath = project.hasProperty('KEYSTORE_PATH') ? KEYSTORE_PATH : '../jopatok-release.jks'
-    def keystoreFile = project.rootProject.file(keystorePath)
-    def keystoreExists = keystoreFile.exists()
-
-    signingConfigs {
-        release {
-            if (keystoreExists) {
-                storeFile keystoreFile
-                storePassword project.hasProperty('KEYSTORE_PASSWORD') ? KEYSTORE_PASSWORD : 'JopatokRelease2026'
-                keyAlias project.hasProperty('KEY_ALIAS') ? KEY_ALIAS : 'jopatok'
-                keyPassword project.hasProperty('KEY_PASSWORD') ? KEY_PASSWORD : 'JopatokRelease2026'
-            }
-        }
-    }
-
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            if (keystoreExists) {
-                signingConfig signingConfigs.release
-            }
         }
     }
 

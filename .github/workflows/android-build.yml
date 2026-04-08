@@ -24,13 +24,6 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Setup Keystore
-        id: keystore
-        run: |
-          base64 -d keystore.b64 > jopatok-release.jks
-          echo "status=signed" >> $GITHUB_OUTPUT
-          echo "Keystore decoded from repo"
-
       - name: Get Latest Release Tag
         id: latest_release
         run: |
@@ -41,7 +34,6 @@ jobs:
             LATEST_TAG="0.0.0"
           fi
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "Latest tag: $LATEST_TAG"
 
       - name: Calculate Next Version
         id: next_version
@@ -57,30 +49,16 @@ jobs:
             NEXT_VERSION="1.0.0"
           fi
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
-          echo "Next version: $NEXT_VERSION"
 
       - name: Build Release APK
         id: build
         run: |
           chmod +x gradlew
-          if [ "${{ steps.keystore.outputs.status }}" = "signed" ]; then
-            echo "Building SIGNED release..."
-            ./gradlew assembleRelease --no-daemon \
-              -PKEYSTORE_PATH=jopatok-release.jks \
-              -PKEYSTORE_PASSWORD=JopatokRelease2026 \
-              -PKEY_ALIAS=jopatok \
-              -PKEY_PASSWORD=JopatokRelease2026
-            # Find the signed APK
-            APK_PATH=$(find app/build/outputs -name "*.apk" ! -name "*unsigned*" | head -1)
-          else
-            echo "Building UNSIGNED release..."
-            ./gradlew assembleRelease --no-daemon
-            APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
-          fi
+          ./gradlew assembleRelease --no-daemon
+          APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
           echo "Found APK: $APK_PATH"
-          ls -la "$APK_PATH" 2>/dev/null || echo "APK not found!"
-          find app/build/outputs -name "*.apk" -exec ls -la {} \;
+          ls -la "$APK_PATH" 2>/dev/null
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
