@@ -54,9 +54,11 @@ jobs:
         id: build
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build_output.txt || {
-            echo "BUILD FAILED - last 100 lines of output:"
-            tail -100 build_output.txt
+          ./gradlew assembleRelease --no-daemon --info 2>&1 | tee build_output.txt || {
+            echo "::group::BUILD ERROR OUTPUT"
+            echo "BUILD FAILED - full output:"
+            cat build_output.txt | grep -i -A5 -E "error:|Error:|failed:|FAILED" | tail -200
+            echo "::endgroup::"
             exit 1
           }
           APK_PATH=$(find app/build/outputs -name "*.apk" | head -1)
