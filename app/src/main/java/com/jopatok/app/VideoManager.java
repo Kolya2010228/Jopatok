@@ -159,19 +159,6 @@ public class VideoManager {
         return videos;
     }
 
-    public List<VideoItem> scanFolders(List<Uri> folderUris) {
-        List<VideoItem> allVideos = new ArrayList<VideoItem>();
-        if (folderUris == null || folderUris.isEmpty()) return allVideos;
-
-        for (Uri folderUri : folderUris) {
-            if (folderUri != null) {
-                String folderName = getFolderNameFromUri(folderUri);
-                allVideos.addAll(scanFolder(folderUri, folderName));
-            }
-        }
-        return allVideos;
-    }
-
     private String getDocumentId(Uri uri) {
         try {
             String docId = DocumentsContract.getTreeDocumentId(uri);
