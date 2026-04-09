@@ -31,6 +31,10 @@
                     android:id="@+id/nav_folder"
                     android:icon="@drawable/ic_settings"
                     android:title="Управление папками" />
+                <item
+                    android:id="@+id/nav_clear_cache"
+                    android:icon="@drawable/ic_settings"
+                    android:title="Очистить кэш" />
             </menu>
         </item>
     </group>

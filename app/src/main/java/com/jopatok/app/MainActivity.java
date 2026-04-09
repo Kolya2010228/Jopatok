@@ -72,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
     private String[] resizeModes = {"Fit", "Fill", "Zoom"};
 
     private ActivityResultLauncher<Intent> folderPickerLauncher;
+    private Uri currentVideoUri; // Для share-меню
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -126,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
         snapHelper = new PagerSnapHelper();
         snapHelper.attachToRecyclerView(recyclerView);
 
-        videoAdapter = new VideoAdapter(this, player);
+        videoAdapter = new VideoAdapter(this, player, this);
         recyclerView.setAdapter(videoAdapter);
 
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -174,6 +175,10 @@ public class MainActivity extends AppCompatActivity {
                 } else if (id == R.id.nav_folder) {
                     drawerLayout.closeDrawer(GravityCompat.END);
                     showSettingsDialog();
+                } else if (id == R.id.nav_clear_cache) {
+                    videoManager.clearCache();
+                    Toast.makeText(MainActivity.this, "Кэш очищен", Toast.LENGTH_SHORT).show();
+                    drawerLayout.closeDrawer(GravityCompat.END);
                 }
                 drawerLayout.closeDrawer(GravityCompat.END);
                 return true;
@@ -217,6 +222,8 @@ public class MainActivity extends AppCompatActivity {
         swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
+                // Принудительное обновление (без кэша)
+                videoManager.clearCache();
                 loadVideos();
             }
         });
@@ -472,7 +479,8 @@ public class MainActivity extends AppCompatActivity {
                                 folderSelector.setVisibility(View.GONE);
                                 videoAdapter.setVideos(new ArrayList<VideoItem>(videos));
                                 videoAdapter.setResizeMode(resizeMode);
-                                Toast.makeText(MainActivity.this, "Найдено видео: " + videos.size(), Toast.LENGTH_SHORT).show();
+                                String msg = "Найдено видео: " + videos.size() + " (кэш 5 мин)";
+                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
                             }
                         }
                     });
@@ -522,5 +530,24 @@ public class MainActivity extends AppCompatActivity {
             player.release();
             player = null;
         }
+    }
+
+    /**
+     * Поделиться текущим видео
+     */
+    public void shareCurrentVideo() {
+        if (currentVideoUri == null) {
+            Toast.makeText(this, "Нет активного видео для шаринга", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent.setType("video/*");
+        shareIntent.putExtra(Intent.EXTRA_STREAM, currentVideoUri);
+        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(Intent.createChooser(shareIntent, "Поделиться видео"));
+    }
+
+    public void setCurrentVideoUri(Uri uri) {
+        this.currentVideoUri = uri;
     }
 }

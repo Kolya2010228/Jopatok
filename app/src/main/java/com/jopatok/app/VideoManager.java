@@ -1,21 +1,120 @@
 package com.jopatok.app;
 
-import android.content.ContentResolver;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.ContentResolver;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.DocumentsContract;
 import android.util.Log;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
 public class VideoManager {
 
     private static final String TAG = "VideoManager";
+    private static final String PREFS_NAME = "JopatokCache";
+    private static final String PREF_CACHED_VIDEOS = "cached_videos";
+    private static final String PREF_CACHE_TIMESTAMP = "cache_timestamp";
+    private static final long CACHE_VALIDITY_MS = 5 * 60 * 1000; // 5 минут
+
     private Context context;
+    private SharedPreferences cachePrefs;
 
     public VideoManager(Context context) {
         this.context = context;
+        this.cachePrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    /**
+     * Сканирует папки и возвращает список видео.
+     * Если кэш валиден — возвращает кэшированные данные.
+     */
+    public List<VideoItem> scanFolders(List<Uri> folderUris) {
+        // Проверяем кэш
+        List<VideoItem> cached = getCachedVideos();
+        if (cached != null && !cached.isEmpty()) {
+            Log.d(TAG, "Returning cached video list (" + cached.size() + " items)");
+            return cached;
+        }
+
+        List<VideoItem> allVideos = new ArrayList<VideoItem>();
+        if (folderUris == null || folderUris.isEmpty()) return allVideos;
+
+        for (Uri folderUri : folderUris) {
+            if (folderUri != null) {
+                String folderName = getFolderNameFromUri(folderUri);
+                allVideos.addAll(scanFolder(folderUri, folderName));
+            }
+        }
+
+        // Кэшируем результат
+        saveCachedVideos(allVideos);
+        Log.d(TAG, "Scanned " + allVideos.size() + " videos and cached");
+        return allVideos;
+    }
+
+    /**
+     * Принудительно пересканировать (без кэша)
+     */
+    public List<VideoItem> scanFoldersForce(List<Uri> folderUris) {
+        clearCache();
+        return scanFolders(folderUris);
+    }
+
+    public void clearCache() {
+        cachePrefs.edit()
+            .remove(PREF_CACHED_VIDEOS)
+            .remove(PREF_CACHE_TIMESTAMP)
+            .apply();
+        Log.d(TAG, "Cache cleared");
+    }
+
+    private List<VideoItem> getCachedVideos() {
+        long timestamp = cachePrefs.getLong(PREF_CACHE_TIMESTAMP, 0);
+        if (System.currentTimeMillis() - timestamp > CACHE_VALIDITY_MS) {
+            return null; // Кэш устарел
+        }
+
+        String json = cachePrefs.getString(PREF_CACHED_VIDEOS, null);
+        if (json == null) return null;
+
+        try {
+            JSONArray array = new JSONArray(json);
+            List<VideoItem> videos = new ArrayList<VideoItem>();
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject obj = array.getJSONObject(i);
+                String title = obj.getString("title");
+                String uriStr = obj.getString("uri");
+                String folderName = obj.getString("folderName");
+                videos.add(new VideoItem(title, Uri.parse(uriStr), title, folderName));
+            }
+            return videos;
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing cached videos: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void saveCachedVideos(List<VideoItem> videos) {
+        try {
+            JSONArray array = new JSONArray();
+            for (VideoItem video : videos) {
+                JSONObject obj = new JSONObject();
+                obj.put("title", video.getTitle());
+                obj.put("uri", video.getUri().toString());
+                obj.put("folderName", video.getFolderName());
+                array.put(obj);
+            }
+            cachePrefs.edit()
+                .putString(PREF_CACHED_VIDEOS, array.toString())
+                .putLong(PREF_CACHE_TIMESTAMP, System.currentTimeMillis())
+                .apply();
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving cached videos: " + e.getMessage());
+        }
     }
 
     public List<VideoItem> scanFolder(Uri folderUri, String folderName) {

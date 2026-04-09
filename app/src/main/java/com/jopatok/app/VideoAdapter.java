@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.LayoutInflater;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -19,21 +20,72 @@ import java.util.List;
 public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHolder> {
 
     private static final String TAG = "VideoAdapter";
-    private List<VideoItem> videos = new ArrayList<VideoItem>();
+    private static final int ITEMS_PER_PAGE = 10; // Порция для подгрузки
+
+    private List<VideoItem> allVideos = new ArrayList<VideoItem>();
+    private List<VideoItem> displayedVideos = new ArrayList<VideoItem>();
     private Context context;
     private Player player;
+    private MainActivity mainActivity;
     private int currentPlayingPosition = -1;
     private int resizeMode = 0;
+    private int loadedCount = 0;
+    private boolean hasMore = true;
+    private OnLoadMoreListener loadMoreListener;
 
-    public VideoAdapter(Context context, Player player) {
+    public interface OnLoadMoreListener {
+        void onLoadMore();
+    }
+
+    public VideoAdapter(Context context, Player player, MainActivity mainActivity) {
         this.context = context;
         this.player = player;
+        this.mainActivity = mainActivity;
     }
 
     public void setVideos(List<VideoItem> videos) {
-        this.videos = videos != null ? videos : new ArrayList<VideoItem>();
-        currentPlayingPosition = this.videos.isEmpty() ? -1 : 0;
-        notifyDataSetChanged();
+        this.allVideos = videos != null ? videos : new ArrayList<VideoItem>();
+        this.displayedVideos = new ArrayList<VideoItem>();
+        this.loadedCount = 0;
+        this.hasMore = true;
+        loadNextPage();
+    }
+
+    /**
+     * Подгрузить следующую порцию видео
+     */
+    public void loadNextPage() {
+        if (!hasMore) return;
+
+        int start = loadedCount;
+        int end = Math.min(start + ITEMS_PER_PAGE, allVideos.size());
+
+        for (int i = start; i < end; i++) {
+            displayedVideos.add(allVideos.get(i));
+        }
+
+        loadedCount = end;
+        hasMore = loadedCount < allVideos.size();
+
+        if (start == 0) {
+            currentPlayingPosition = displayedVideos.isEmpty() ? -1 : 0;
+            notifyDataSetChanged();
+        } else {
+            notifyItemRangeInserted(start, end - start);
+        }
+
+        if (hasMore && loadMoreListener != null) {
+            // Автоматически подгружаем следующую порцию
+            loadMoreListener.onLoadMore();
+        }
+    }
+
+    /**
+     * Получить общее количество видео (для адаптера)
+     */
+    @Override
+    public int getItemCount() {
+        return displayedVideos.size();
     }
 
     public void setResizeMode(int mode) {
@@ -41,27 +93,8 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
         notifyDataSetChanged();
     }
 
-    @NonNull
-    @Override
-    public VideoViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(context).inflate(R.layout.item_video, parent, false);
-        return new VideoViewHolder(view);
-    }
-
-    @Override
-    public void onBindViewHolder(@NonNull VideoViewHolder holder, int position) {
-        holder.bind(position);
-    }
-
-    @Override
-    public void onViewRecycled(@NonNull VideoViewHolder holder) {
-        super.onViewRecycled(holder);
-        holder.unbind();
-    }
-
-    @Override
-    public int getItemCount() {
-        return videos.size();
+    public void setOnLoadMoreListener(OnLoadMoreListener listener) {
+        this.loadMoreListener = listener;
     }
 
     public void playVideoAt(int position) {
@@ -82,11 +115,35 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
         return currentPlayingPosition;
     }
 
+    @NonNull
+    @Override
+    public VideoViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_video, parent, false);
+        return new VideoViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull VideoViewHolder holder, int position) {
+        holder.bind(position);
+
+        // Подгрузка при прокрутке к концу
+        if (position >= getItemCount() - 2 && hasMore) {
+            loadNextPage();
+        }
+    }
+
+    @Override
+    public void onViewRecycled(@NonNull VideoViewHolder holder) {
+        super.onViewRecycled(holder);
+        holder.unbind();
+    }
+
     class VideoViewHolder extends RecyclerView.ViewHolder {
         private PlayerView playerView;
         private FrameLayout videoContainer;
         private TextView videoTitle;
         private TextView videoFolder;
+        private ImageButton shareBtn;
         private long lastTapTime = 0;
         private static final long DOUBLE_TAP_TIMEOUT = 300;
 
@@ -96,12 +153,13 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             videoContainer = itemView.findViewById(R.id.videoContainer);
             videoTitle = itemView.findViewById(R.id.videoTitle);
             videoFolder = itemView.findViewById(R.id.videoFolder);
+            shareBtn = itemView.findViewById(R.id.shareBtn);
         }
 
         public void bind(final int position) {
-            if (videos == null || position < 0 || position >= videos.size()) return;
+            if (displayedVideos == null || position < 0 || position >= displayedVideos.size()) return;
 
-            final VideoItem video = videos.get(position);
+            final VideoItem video = displayedVideos.get(position);
             final int playingPos = currentPlayingPosition;
             boolean isActive = (position == playingPos);
 
@@ -152,6 +210,20 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
                                     }
                                 }
                             }, DOUBLE_TAP_TIMEOUT);
+                        }
+                    });
+                }
+
+                // Кнопка share
+                if (shareBtn != null) {
+                    shareBtn.setVisibility(View.VISIBLE);
+                    shareBtn.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            if (mainActivity != null) {
+                                mainActivity.setCurrentVideoUri(video.getUri());
+                                mainActivity.shareCurrentVideo();
+                            }
                         }
                     });
                 }
