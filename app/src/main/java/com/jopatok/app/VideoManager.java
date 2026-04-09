@@ -75,9 +75,10 @@ public class VideoManager {
 
     private String getDocumentId(Uri uri) {
         try {
-            String docId = uri.getLastPathSegment();
+            String docId = DocumentsContract.getTreeDocumentId(uri);
             return docId != null ? docId : "";
         } catch (Exception e) {
+            Log.e(TAG, "Error getting document ID: " + e.getMessage());
             return "";
         }
     }

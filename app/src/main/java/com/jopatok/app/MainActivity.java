@@ -8,19 +8,18 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
-import android.widget.ImageButton;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -38,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
@@ -50,7 +48,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_LOOP_VIDEO = "loop_video";
     private static final String PREF_PLAYBACK_SPEED = "playback_speed";
     private static final String PREF_RESIZE_MODE = "resize_mode";
-    private static final int REQUEST_CODE_PICK_FOLDER = 1001;
     private static final int REQUEST_CODE_PERMISSIONS = 1002;
 
     private RecyclerView recyclerView;
@@ -73,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
     private int resizeMode = 0;
     private String[] resizeModes = {"Fit", "Fill", "Zoom"};
 
-    private PowerManager.WakeLock wakeLock;
+    private ActivityResultLauncher<Intent> folderPickerLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,10 +84,32 @@ public class MainActivity extends AppCompatActivity {
             .setHandleAudioBecomingNoisy(true)
             .build();
 
-        initWakeLock();
+        folderPickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri uri = result.getData().getData();
+                    if (uri != null) {
+                        try {
+                            getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                            selectedFolders.add(uri);
+                            saveFolders();
+                            loadVideos();
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error taking URI permission: " + e.getMessage());
+                            Toast.makeText(this, "Ошибка доступа к папке", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+            }
+        );
+
         initViews();
         loadSavedSettings();
         checkPermissions();
+
+        // Держим экран включённым пока приложение активно
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     private void initViews() {
@@ -205,13 +224,24 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupMenuSwitch(int menuItemId, CompoundButton.OnCheckedChangeListener listener) {
         MenuItem item = navigationView.getMenu().findItem(menuItemId);
-        if (item == null) return;
+        if (item == null) {
+            Log.w(TAG, "Menu item not found: " + menuItemId);
+            return;
+        }
 
+        // Force create action view if not inflated from XML
         View actionView = item.getActionView();
-        if (actionView == null) return;
+        if (actionView == null) {
+            Log.w(TAG, "ActionView is null for menu item: " + menuItemId);
+            return;
+        }
 
         Switch switchView = actionView.findViewById(R.id.menu_switch);
-        if (switchView != null) switchView.setOnCheckedChangeListener(listener);
+        if (switchView != null) {
+            switchView.setOnCheckedChangeListener(listener);
+        } else {
+            Log.w(TAG, "Switch view not found in action view for: " + menuItemId);
+        }
     }
 
     private void updateMenuSwitch(int menuItemId, boolean checked) {
@@ -220,7 +250,9 @@ public class MainActivity extends AppCompatActivity {
         View actionView = item.getActionView();
         if (actionView == null) return;
         Switch switchView = actionView.findViewById(R.id.menu_switch);
-        if (switchView != null) switchView.setChecked(checked);
+        if (switchView != null) {
+            switchView.setChecked(checked);
+        }
     }
 
     private void showSpeedDialog() {
@@ -411,26 +443,7 @@ public class MainActivity extends AppCompatActivity {
     private void pickFolder() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        startActivityForResult(intent, REQUEST_CODE_PICK_FOLDER);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_PICK_FOLDER && resultCode == RESULT_OK && data != null) {
-            Uri uri = data.getData();
-            if (uri != null) {
-                try {
-                    getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    selectedFolders.add(uri);
-                    saveFolders();
-                    loadVideos();
-                } catch (Exception e) {
-                    Log.e(TAG, "Error taking URI permission: " + e.getMessage());
-                    Toast.makeText(this, "Ошибка доступа к папке", Toast.LENGTH_SHORT).show();
-                }
-            }
-        }
+        folderPickerLauncher.launch(intent);
     }
 
     private void loadVideos() {
@@ -441,7 +454,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     final List<VideoItem> videos = videoManager.scanFolders(selectedFolders);
                     if (shuffleVideos && videos != null && !videos.isEmpty()) {
-                        Collections.shuffle(videos, new Random(System.currentTimeMillis()));
+                        Collections.shuffle(videos);
                     }
                     runOnUiThread(new Runnable() {
                         @Override
@@ -476,36 +489,18 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void initWakeLock() {
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        wakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ON_AFTER_RELEASE, "Jopatok::WakeLock");
-    }
-
-    private void acquireWakeLock() {
-        if (wakeLock != null && !wakeLock.isHeld()) {
-            wakeLock.acquire(10 * 60 * 1000L);
-        }
-    }
-
-    private void releaseWakeLock() {
-        if (wakeLock != null && wakeLock.isHeld()) {
-            wakeLock.release();
-        }
-    }
-
     @Override
     public void onBackPressed() {
         if (drawerLayout.isDrawerOpen(GravityCompat.END)) {
             drawerLayout.closeDrawer(GravityCompat.END);
         } else {
-            super.onBackPressed();
+            getOnBackPressedDispatcher().onBackPressed();
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        releaseWakeLock();
         if (player != null) {
             player.pause();
         }
@@ -514,7 +509,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        acquireWakeLock();
         if (player != null && videoAdapter.getCurrentPlayingPosition() >= 0) {
             player.play();
         }
@@ -523,10 +517,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        releaseWakeLock();
-        if (videoAdapter != null) {
-            videoAdapter.releasePlayer();
-        }
         if (player != null) {
             player.release();
             player = null;
