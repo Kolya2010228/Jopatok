@@ -112,6 +112,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Держим экран включённым пока приложение активно
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // Автоочистка кэша при запуске
+        videoManager.clearCache();
     }
 
     private void initViews() {
