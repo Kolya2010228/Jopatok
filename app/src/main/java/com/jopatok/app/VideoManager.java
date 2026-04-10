@@ -89,7 +89,7 @@ public class VideoManager {
                 String title = obj.getString("title");
                 String uriStr = obj.getString("uri");
                 String folderName = obj.getString("folderName");
-                videos.add(new VideoItem(title, Uri.parse(uriStr), title, folderName));
+                videos.add(new VideoItem(uriStr, Uri.parse(uriStr), title, folderName));
             }
             return videos;
         } catch (Exception e) {

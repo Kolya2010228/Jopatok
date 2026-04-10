@@ -453,7 +453,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void pickFolder() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         folderPickerLauncher.launch(intent);
     }
 
@@ -482,7 +482,7 @@ public class MainActivity extends AppCompatActivity {
                                 folderSelector.setVisibility(View.GONE);
                                 videoAdapter.setVideos(new ArrayList<VideoItem>(videos));
                                 videoAdapter.setResizeMode(resizeMode);
-                                String msg = "Найдено видео: " + videos.size() + " (кэш 5 мин)";
+                                String msg = "Найдено видео: " + videos.size();
                                 Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
                             }
                         }
@@ -521,7 +521,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        // Проверяем, не было ли получено разрешение после возврата из настроек
+        if (selectedFolders.isEmpty()) {
+            checkPermissions();
+        }
         if (player != null && videoAdapter.getCurrentPlayingPosition() >= 0) {
+            // Привязываем плеер к видимому элементу
+            videoAdapter.playVideoAt(videoAdapter.getCurrentPlayingPosition());
             player.play();
         }
     }
@@ -543,11 +549,11 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Нет активного видео для шаринга", Toast.LENGTH_SHORT).show();
             return;
         }
-        Intent shareIntent = new Intent(Intent.ACTION_SEND);
-        shareIntent.setType("video/*");
-        shareIntent.putExtra(Intent.EXTRA_STREAM, currentVideoUri);
+        // Используем ACTION_VIEW вместо ACTION_SEND для лучшей совместимости с DocumentsContract URI
+        Intent shareIntent = new Intent(Intent.ACTION_VIEW);
+        shareIntent.setDataAndType(currentVideoUri, "video/*");
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(Intent.createChooser(shareIntent, "Поделиться видео"));
+        startActivity(Intent.createChooser(shareIntent, "Открыть видео в"));
     }
 
     public void setCurrentVideoUri(Uri uri) {

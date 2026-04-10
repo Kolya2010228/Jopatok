@@ -31,11 +31,7 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
     private int resizeMode = 0;
     private int loadedCount = 0;
     private boolean hasMore = true;
-    private OnLoadMoreListener loadMoreListener;
-
-    public interface OnLoadMoreListener {
-        void onLoadMore();
-    }
+    private boolean isLoadingPage = false; // Защита от реентрантности
 
     public VideoAdapter(Context context, Player player, MainActivity mainActivity) {
         this.context = context;
@@ -55,28 +51,28 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
      * Подгрузить следующую порцию видео
      */
     public void loadNextPage() {
-        if (!hasMore) return;
+        if (!hasMore || isLoadingPage) return;
 
-        int start = loadedCount;
-        int end = Math.min(start + ITEMS_PER_PAGE, allVideos.size());
+        isLoadingPage = true;
+        try {
+            int start = loadedCount;
+            int end = Math.min(start + ITEMS_PER_PAGE, allVideos.size());
 
-        for (int i = start; i < end; i++) {
-            displayedVideos.add(allVideos.get(i));
-        }
+            for (int i = start; i < end; i++) {
+                displayedVideos.add(allVideos.get(i));
+            }
 
-        loadedCount = end;
-        hasMore = loadedCount < allVideos.size();
+            loadedCount = end;
+            hasMore = loadedCount < allVideos.size();
 
-        if (start == 0) {
-            currentPlayingPosition = displayedVideos.isEmpty() ? -1 : 0;
-            notifyDataSetChanged();
-        } else {
-            notifyItemRangeInserted(start, end - start);
-        }
-
-        if (hasMore && loadMoreListener != null) {
-            // Автоматически подгружаем следующую порцию
-            loadMoreListener.onLoadMore();
+            if (start == 0) {
+                currentPlayingPosition = displayedVideos.isEmpty() ? -1 : 0;
+                notifyDataSetChanged();
+            } else {
+                notifyItemRangeInserted(start, end - start);
+            }
+        } finally {
+            isLoadingPage = false;
         }
     }
 
@@ -93,10 +89,6 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
         notifyDataSetChanged();
     }
 
-    public void setOnLoadMoreListener(OnLoadMoreListener listener) {
-        this.loadMoreListener = listener;
-    }
-
     public void playVideoAt(int position) {
         if (position < 0 || position >= getItemCount()) return;
         int previousPosition = currentPlayingPosition;
@@ -105,10 +97,6 @@ public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHol
             notifyItemChanged(previousPosition);
         }
         notifyItemChanged(position);
-    }
-
-    public void releasePlayer() {
-        if (player != null) player.release();
     }
 
     public int getCurrentPlayingPosition() {
